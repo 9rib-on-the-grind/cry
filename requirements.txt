@@ -27,6 +27,7 @@ pyasn1==0.4.8
 pyasn1-modules==0.2.8
 python-binance==1.0.12
 python-dateutil==2.8.1
+python-dotenv==0.17.1
 pytz==2021.1
 regex==2021.4.4
 requests==2.25.1
