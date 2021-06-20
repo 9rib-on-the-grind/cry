@@ -16,10 +16,8 @@ secret_key = os.getenv('READONLY_SECRET_KEY')
 client = Client(api_key, secret_key)
 trainer = Trainer(client)
 
-df = trainer.get_history(
-					symbol='BTCUSDT', 
-					interval='1m', 
-					period='1 day',
+trainer.build_dataset(
+				symbol='BTCUSDT', 
+				interval='1m', 
+				period='10 days',
 	)
-
-# visualizer.show_graph(df)

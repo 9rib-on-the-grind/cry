@@ -1,10 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-
-import mplfinance as mpf
-
 from mplfinance.original_flavor import candlestick_ohlc
-import matplotlib.dates as mpdates
 
 
 def show_graph(df=None, file=None):
@@ -26,7 +22,4 @@ def show_graph(df=None, file=None):
 		ax.set_xlabel('Time')
 		ax.set_ylabel('Price')
 		fig.tight_layout()
-
 		plt.show()
-
-
