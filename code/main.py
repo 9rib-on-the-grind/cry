@@ -19,5 +19,5 @@ trainer = Trainer(client)
 trainer.build_dataset(
 				symbol='BTCUSDT', 
 				interval='1m', 
-				period='10 days',
+				period='60 minutes',
 	)
