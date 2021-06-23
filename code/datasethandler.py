@@ -92,7 +92,7 @@ class DatasetHandler:
 		for i in ids:
 			data = self.history[i-self.trailing_candlesticks:i].to_numpy()
 			data = tf.convert_to_tensor(data)
-			target = self.history.iloc[i][['High', 'Close']].to_numpy()
+			target = self.history.iloc[i].to_numpy()
 			target = tf.convert_to_tensor(target)
 
 			example = serialize_example(tf.io.serialize_tensor(data), tf.io.serialize_tensor(target))

@@ -21,12 +21,8 @@ trainer = Trainer(client, model)
 trainer.build_new_dataset(
 				symbol='BTCUSDT', 
 				interval='1m', 
-				period='1 days',
+				period='100 days',
 				# period='90 minutes',
 	)
 
 trainer.train()
-# print('\n'*10)
-# for i in trainer.train_dataset.take(1):
-# 	print(i[1])
-# print(trainer.model.predict(trainer.train_dataset.take(1)))

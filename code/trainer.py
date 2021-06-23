@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from datasethandler import DatasetHandler
+from visualizer import show_graph
 
 
 class Trainer:
@@ -20,11 +21,27 @@ class Trainer:
 	def build_new_dataset(self, symbol, interval, period):
 		# self.datasethandler.generate_dataset(symbol, interval, period)
 		# self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets()
-		self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets('100_days_norm')
+		self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets('100_day')
 
 
 	def train(self):
 		self.model.fit(
 				self.train_dataset,
-				epochs=10,
+				epochs=3,
 			)
+		self.visual_validation()
+
+
+	def visual_validation(self, n=20):
+		fig, axs = plt.subplots(nrows=4, ncols=n//4)
+		
+		inputs = self.train_dataset.take(1)
+		predictions = self.model.predict(inputs)
+
+		for ax, (data, target), pred in zip(axs.reshape(-1), inputs.unbatch(), predictions):
+			data, target, pred = map(np.array, [data, target, pred])
+			candlesticks = np.vstack([data[-3:], target.reshape((1, -1)), pred.reshape((1, -1))])
+			show_graph(ax, candlesticks)
+
+		# plt.tight_layout()
+		plt.show()

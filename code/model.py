@@ -22,7 +22,7 @@ def get_model():
 	model.add(keras.layers.Conv1D(32, 5, padding='same', input_shape=(20, 6)))
 	model.add(keras.layers.GlobalAveragePooling1D())
 	model.add(keras.layers.Flatten())
-	model.add(keras.layers.Dense(2))
+	model.add(keras.layers.Dense(6))
 
 	model.compile(
 			optimizer='SGD',
