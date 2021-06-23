@@ -14,15 +14,14 @@ class DatasetHandler:
 
 	def create_directories(self):
 		timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-		self.directory = f'./data/{timestamp}/'
-		self.dataset_directory = self.directory + 'dataset/'
-		os.mkdir(self.directory)
+		self.dataset_directory = f'./data/{timestamp}/'
 		os.makedirs(self.dataset_directory + 'train')
 		os.makedirs(self.dataset_directory + 'valid')
 		os.makedirs(self.dataset_directory + 'test')
 
 
-	def build_dataset(self, symbol='BTCUSDT', interval='1m', period='90m'):
+	def generate_dataset(self, symbol='BTCUSDT', interval='1m', period='90m'):
+		self.create_directories()
 
 		self.history = self.get_history(symbol, interval, period)
 		subsets = self.train_test_valid_split(train=.7, valid=.2, test=.1)
@@ -30,9 +29,14 @@ class DatasetHandler:
 		for ids, name in zip(subsets, ('train', 'test', 'valid')):
 			self.write_tfrecords(ids, name)
 
-		train_filenames = tf.io.gfile.glob(self.dataset_directory + 'train/*.tfrecord')
-		valid_filenames = tf.io.gfile.glob(self.dataset_directory + 'valid/*.tfrecord')
-		test_filenames = tf.io.gfile.glob(self.dataset_directory + 'test/*.tfrecord')
+	def get_datasets(self, dataset_directory=None):
+		dataset_directory = f'./data/{dataset_directory}/' if dataset_directory is not None else self.dataset_directory
+		print(dataset_directory)
+		train_filenames = tf.io.gfile.glob(dataset_directory + 'train/*.tfrecord')
+		valid_filenames = tf.io.gfile.glob(dataset_directory + 'valid/*.tfrecord')
+		test_filenames = tf.io.gfile.glob(dataset_directory + 'test/*.tfrecord')
+
+		print(train_filenames)
 
 		self.train_dataset = self.load_dataset(train_filenames)
 		self.valid_dataset = self.load_dataset(valid_filenames)
@@ -49,6 +53,7 @@ class DatasetHandler:
 		df = pd.DataFrame(data=klines, columns=labels, dtype=float)
 		atributes = ['Open', 'High', 'Low', 'Close', 'Volume', 'Number of trades']
 		df = df[atributes]
+		df = (df - df.min()) / (df.max() - df.min())
 		return df
 
 	def train_test_valid_split(self, train, valid, test):
