@@ -31,12 +31,9 @@ class DatasetHandler:
 
 	def get_datasets(self, dataset_directory=None):
 		dataset_directory = f'./data/{dataset_directory}/' if dataset_directory is not None else self.dataset_directory
-		print(dataset_directory)
 		train_filenames = tf.io.gfile.glob(dataset_directory + 'train/*.tfrecord')
 		valid_filenames = tf.io.gfile.glob(dataset_directory + 'valid/*.tfrecord')
 		test_filenames = tf.io.gfile.glob(dataset_directory + 'test/*.tfrecord')
-
-		print(train_filenames)
 
 		self.train_dataset = self.load_dataset(train_filenames)
 		self.valid_dataset = self.load_dataset(valid_filenames)
@@ -114,6 +111,11 @@ class DatasetHandler:
 			example = {name: tf.io.parse_tensor(example[name], tf.float64) for name in example}
 			return example['data'], example['target']
 
+		def reshape_tensors(data, target):
+			data = tf.reshape(data, (20, 6))
+			target = tf.reshape(target, (6,))
+			return data, target
+
 		features_description = {
 			'data': tf.io.FixedLenFeature([], tf.string),
 			'target': tf.io.FixedLenFeature([], tf.string),
@@ -122,6 +124,7 @@ class DatasetHandler:
 		dataset = tf.data.TFRecordDataset(filenames)
 		dataset = dataset.map(deserialize)
 		dataset = dataset.map(parse_tensors)
+		dataset = dataset.map(reshape_tensors)
 		dataset = dataset.batch(32)
 
 		return dataset
