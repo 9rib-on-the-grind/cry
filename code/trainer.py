@@ -27,9 +27,10 @@ class Trainer:
 	def train(self):
 		self.model.fit(
 				self.train_dataset,
-				epochs=3,
+				epochs=2,
 			)
 		self.visual_validation()
+
 
 
 	def visual_validation(self, n=20):
@@ -43,7 +44,10 @@ class Trainer:
 			candlesticks = np.vstack([data[-3:], target.reshape((1, -1)), pred.reshape((1, -1))])
 			show_graph(ax, candlesticks)
 
-		# plt.tight_layout()
+			ax.set_yticklabels([])
+			ax.set_xticklabels([])
+
+		plt.subplots_adjust(left=.01, bottom=.01, right=.99, top=.99, wspace=.07, hspace=.07)
 		plt.show()
 
 	def simuilation(self):
