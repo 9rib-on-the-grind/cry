@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 from binance import Client
 import pandas as pd
 
+import model
 from trainer import Trainer
 import visualizer
-import model
 
 
 load_dotenv()
@@ -22,7 +22,7 @@ trainer.build_new_dataset(
 				symbol='BTCUSDT', 
 				interval='1m', 
 				period='100 days',
-				# period='90 minutes',
+				# period='9000 minutes',
 	)
 
 trainer.train()

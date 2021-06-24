@@ -45,3 +45,6 @@ class Trainer:
 
 		# plt.tight_layout()
 		plt.show()
+
+	def simuilation(self):
+		predictions = self.model.predict(self.test_dataset)
