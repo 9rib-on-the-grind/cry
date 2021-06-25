@@ -7,9 +7,14 @@ import tensorflow as tf
 
 
 class DatasetHandler:
-	def __init__(self, client, trailing_candlesticks=20):
+	def __init__(self, client, trailing_candlesticks):
 		self.client = client
 		self.trailing_candlesticks = trailing_candlesticks
+		self.output_attributes = ['Open', 'High', 'Low', 'Close']
+
+		# min max values for past 100 days
+		self.dfmin = np.array([0.93886857, 0.95632116, 0.93803297, 0.94201088])
+		self.dfmax = np.array([1.04509891, 1.0432493, 1.03086067, 1.04629241])
 
 
 	def create_directories(self):
@@ -23,10 +28,16 @@ class DatasetHandler:
 	def generate_dataset(self, symbol='BTCUSDT', interval='1m', period='90m'):
 		self.create_directories()
 
+		print('getting history')
 		self.history = self.get_history(symbol, interval, period)
+		print('preparing data')
+		self.dataframe = self.prepare_data(self.history)
+
 		subsets = self.train_test_valid_split(train=.7, valid=.2, test=.1)
 		
+		print('writing tfrecords')
 		for ids, name in zip(subsets, ('train', 'test', 'valid')):
+			print(name)
 			self.write_tfrecords(ids, name)
 
 	def get_datasets(self, dataset_directory=None):
@@ -48,13 +59,37 @@ class DatasetHandler:
 				  'Volume', 'Close time', 'Quote asset volume', 'Number of trades',
 				  'Taker buy base asset volume', 'Taker buy quote asset volume', 'Ignore']
 		df = pd.DataFrame(data=klines, columns=labels, dtype=float)
-		atributes = ['Open', 'High', 'Low', 'Close', 'Volume', 'Number of trades']
-		df = df[atributes]
-		df = (df - df.min()) / (df.max() - df.min())
 		return df
 
+	def prepare_data(self, df):
+
+		atributes = ['Open', 'High', 'Low', 'Close']
+		df = df[atributes]
+
+		# body_center = (df['Open'] + df['Colse']) / 2
+		# body_heigh = df['Close'] - df['Open']
+		# shadow_center = (df['Low'] + df['High']) / 2
+		# shadow_heigh = df['High'] - df['Low']
+
+		df = df.iloc[1:] / df.iloc[:-1].values
+
+		self.dfmin = df[self.output_attributes].min().to_numpy()
+		self.dfmax = df[self.output_attributes].max().to_numpy()
+
+		print('='*100)
+		print(self.dfmin)
+		print(self.dfmax)
+
+		df = (df - df.min()) / (df.max() - df.min())
+
+		return df
+
+	def denormalize(self, data):
+		return data * (self.dfmax - self.dfmin) + self.dfmin
+
+
 	def train_test_valid_split(self, train, valid, test):
-		ids = np.random.permutation(np.arange(self.trailing_candlesticks, len(self.history)))
+		ids = np.random.permutation(np.arange(self.trailing_candlesticks, len(self.dataframe)))
 		splits = [int(len(ids) * train), int(len(ids) * (train + valid))]
 		subsets = np.split(ids, splits)
 		return subsets
@@ -87,9 +122,10 @@ class DatasetHandler:
 
 		dataset = []
 		for i in ids:
-			data = self.history[i-self.trailing_candlesticks:i].to_numpy()
+			data = self.dataframe[i-self.trailing_candlesticks:i].to_numpy()
+			target = self.dataframe.iloc[i][self.output_attributes].to_numpy()
+			
 			data = tf.convert_to_tensor(data)
-			target = self.history.iloc[i].to_numpy()
 			target = tf.convert_to_tensor(target)
 
 			example = serialize_example(tf.io.serialize_tensor(data), tf.io.serialize_tensor(target))
@@ -112,8 +148,8 @@ class DatasetHandler:
 			return example['data'], example['target']
 
 		def reshape_tensors(data, target):
-			data = tf.reshape(data, (20, 6))
-			target = tf.reshape(target, (6,))
+			data = tf.reshape(data, (self.trailing_candlesticks, len(self.output_attributes)))
+			target = tf.reshape(target, (len(self.output_attributes),))
 			return data, target
 
 		features_description = {
