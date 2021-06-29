@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras as keras
 
 from datasethandler import DatasetHandler
 from visualizer import show_graph
 
 
+
 class Trainer:
-	def __init__(self, client, model, trailing_candlesticks=30):
+	def __init__(self, client, model, trailing_candlesticks=5):
 		self.client = client
 		self.model = model
 		self.trailing_candlesticks = trailing_candlesticks
@@ -19,58 +21,33 @@ class Trainer:
 
 
 	def build_new_dataset(self, symbol, interval, period):
-		# self.datasethandler.generate_dataset(symbol, interval, period)
-		# self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets()
-		self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets('data')
+		self.datasethandler.generate_dataset(symbol, interval, period)
+		self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets()
+		# self.train_dataset, self.valid_dataset, self.test_dataset = self.datasethandler.get_datasets('percent')
 
 
 	def train(self):
 		self.model.fit(
 				self.train_dataset,
 				epochs=3,
+				validation_data=self.valid_dataset,
+	            callbacks=[keras.callbacks.ReduceLROnPlateau(patience=5, verbose=True)],
 			)
 
-		# self.model.evaluate()
-		# self.visual_validation()
-		self.numeric_validation()
+		self.visual_validation()
 
 
-
-	def numeric_validation(self, n=20):
-		inputs = self.test_dataset
+	def visual_validation(self, n=20):
+		inputs = self.train_dataset.take(20)
 		predictions = self.model.predict(inputs)
 
-		tar_list, pred_list = [], []
+		print('min prediction:', np.min(predictions))
+		print('max prediction:', np.max(predictions))
 
-		for (data, target), pred in zip(inputs.unbatch(), predictions):
+		targets = [tar.numpy().reshape(-1) for (data, tar) in inputs.unbatch()]
+		predictions = [pred.reshape(-1) for pred in predictions]
 
-			tar, pred = (self.datasethandler.denormalize(target.numpy()), 
-							  self.datasethandler.denormalize(pred))
-			tar, pred = (tar - 1) * 100, (pred - 1) * 100
-			if tar[3] > 1 or tar[3] < -1:
-				tar_list.append(tar[3])
-				pred_list.append(pred[3])
-
-		plt.plot(tar_list, color='green')
-		plt.plot(pred_list, color='red')
-		plt.plot([0] * len(tar_list), color='black')
+		plt.plot(targets[:n], color='green')
+		plt.plot(predictions[:n], color='red')
+		plt.plot([1] * n, color='black')
 		plt.show()
-		
-
-
-	# def visual_validation(self, n=20):
-	# 	fig, axs = plt.subplots(nrows=4, ncols=n//4)
-		
-	# 	inputs = self.test_dataset.take(1)
-	# 	predictions = self.model.predict(inputs)
-
-	# 	for ax, (data, target), pred in zip(axs.reshape(-1), inputs.unbatch(), predictions):
-	# 		data, target, pred = map(np.array, [data, target, pred])
-	# 		candlesticks = np.vstack([data[-3:], target.reshape((1, -1)), pred.reshape((1, -1))])
-	# 		show_graph(ax, candlesticks)
-
-	# 		# ax.set_yticklabels([])
-	# 		# ax.set_xticklabels([])
-
-	# 	plt.subplots_adjust(left=.01, bottom=.01, right=.99, top=.99, wspace=.07, hspace=.07)
-	# 	plt.show()
