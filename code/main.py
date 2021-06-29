@@ -22,7 +22,7 @@ trainer.build_new_dataset(
 				symbol='BTCUSDT', 
 				interval='1m', 
 				period='100 days',
-				# period='9000 minutes',
+				# period='1000 minutes',
 	)
 
 trainer.train()
