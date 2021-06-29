@@ -4,17 +4,16 @@ import os
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+
 
 
 class DatasetHandler:
 	def __init__(self, client, trailing_candlesticks):
 		self.client = client
 		self.trailing_candlesticks = trailing_candlesticks
-		self.output_attributes = ['Open', 'High', 'Low', 'Close']
-
-		# min max values for past 100 days
-		self.dfmin = np.array([0.93886857, 0.95632116, 0.93803297, 0.94201088])
-		self.dfmax = np.array([1.04509891, 1.0432493, 1.03086067, 1.04629241])
+		self.data_shape = (5, 14)
+		self.target_shape = (1, 1)
 
 
 	def create_directories(self):
@@ -27,18 +26,23 @@ class DatasetHandler:
 
 	def generate_dataset(self, symbol='BTCUSDT', interval='1m', period='90m'):
 		self.create_directories()
+		
+		self.symbol = symbol
+		if self.symbol == 'BTCUSDT':
+			self.base = 'BTC'
+			self.quote = 'USDT'
 
 		print('getting history')
 		self.history = self.get_history(symbol, interval, period)
 		print('preparing data')
-		self.dataframe = self.prepare_data(self.history)
+		self.dataframe, self.target = self.prepare_data(self.history)
 
 		subsets = self.train_test_valid_split(train=.7, valid=.2, test=.1)
 		
-		print('writing tfrecords')
 		for ids, name in zip(subsets, ('train', 'test', 'valid')):
-			print(name)
+			print(f'writing tfrecords: {name} dataset')
 			self.write_tfrecords(ids, name)
+
 
 	def get_datasets(self, dataset_directory=None):
 		dataset_directory = f'./data/{dataset_directory}/' if dataset_directory is not None else self.dataset_directory
@@ -54,42 +58,44 @@ class DatasetHandler:
 
 
 	def get_history(self, symbol, interval, period):
-		klines = self.client.get_historical_klines(symbol=symbol, interval=interval, start_str= period + ' ago UTC')
+		# klines = self.client.get_historical_klines(symbol=symbol, interval=interval, start_str= period + ' ago UTC')
 		labels = ['Open time', 'Open', 'High', 'Low', 'Close', 
-				  'Volume', 'Close time', 'Quote asset volume', 'Number of trades',
-				  'Taker buy base asset volume', 'Taker buy quote asset volume', 'Ignore']
-		df = pd.DataFrame(data=klines, columns=labels, dtype=float)
+				  self.base + ' volume', 'Close time', self.quote + ' volume', 'Number of trades',
+				  f'{self.base} buy volume', f'{self.quote} sell volume', 'Ignore']
+		# df = pd.DataFrame(data=klines, columns=labels, dtype=float)
+		# df.to_csv('./data/history.csv', index=False)
+		df = pd.read_csv('./data/history.csv')
+
 		return df
+
 
 	def prepare_data(self, df):
+		df = df.drop(columns=['Open time', 'Open', 'Close time', 'Ignore', self.quote + ' volume'])
 
-		atributes = ['Open', 'High', 'Low', 'Close']
-		df = df[atributes]
+		df['Buy / volume ratio'] = df[f'{self.base} buy volume'] / (df[self.base + ' volume'])
+		df['Sell / volume ratio'] = 1 - df['Buy / volume ratio']
+		
+		MAs = (3, 7, 25, 99, 250)
+		for avg in MAs:
+			df[f'{avg} MA'] = df['Close'].rolling(avg).mean()
 
-		# body_center = (df['Open'] + df['Colse']) / 2
-		# body_heigh = df['Close'] - df['Open']
-		# shadow_center = (df['Low'] + df['High']) / 2
-		# shadow_heigh = df['High'] - df['Low']
+		for attr in ('High', 'Low', 'Close') + tuple(f'{avg} MA' for avg in MAs):
+			df[attr].iloc[1:] = (df[attr].iloc[1:] / df[attr].iloc[:-1].values)
 
-		df = df.iloc[1:] / df.iloc[:-1].values
-
-		self.dfmin = df[self.output_attributes].min().to_numpy()
-		self.dfmax = df[self.output_attributes].max().to_numpy()
-
-		print('='*100)
-		print(self.dfmin)
-		print(self.dfmax)
-
+		df = df.dropna()
+		target = df['Close']
+		target = target.iloc[1:]
+		
 		df = (df - df.min()) / (df.max() - df.min())
 
-		return df
+		self.data_shape = (self.trailing_candlesticks, len(df.iloc[0]))
+		self.target_shape = (1, 1)
 
-	def denormalize(self, data):
-		return data * (self.dfmax - self.dfmin) + self.dfmin
+		return df, target
 
 
 	def train_test_valid_split(self, train, valid, test):
-		ids = np.random.permutation(np.arange(self.trailing_candlesticks, len(self.dataframe)))
+		ids = np.random.permutation(np.arange(self.trailing_candlesticks, len(self.dataframe) - 1))
 		splits = [int(len(ids) * train), int(len(ids) * (train + valid))]
 		subsets = np.split(ids, splits)
 		return subsets
@@ -119,18 +125,18 @@ class DatasetHandler:
 			tf_string = tf.py_function(serialize_example, *args, tf.string)
 			return (tf.reshape(tf_string, ()))
 
-
 		dataset = []
 		for i in ids:
-			data = self.dataframe[i-self.trailing_candlesticks:i].to_numpy()
-			target = self.dataframe.iloc[i][self.output_attributes].to_numpy()
-			
+			data = self.dataframe.iloc[i-self.trailing_candlesticks:i].to_numpy()
+			target = self.target.iloc[i].reshape((1, 1))
+
 			data = tf.convert_to_tensor(data)
 			target = tf.convert_to_tensor(target)
 
 			example = serialize_example(tf.io.serialize_tensor(data), tf.io.serialize_tensor(target))
 			dataset.append(example)
 
+		print(f'{name} set has {len(dataset)} samples')
 		dataset = tf.data.Dataset.from_tensor_slices(dataset)
 
 		filename = self.dataset_directory + name + '/rec.tfrecord'
@@ -148,8 +154,8 @@ class DatasetHandler:
 			return example['data'], example['target']
 
 		def reshape_tensors(data, target):
-			data = tf.reshape(data, (self.trailing_candlesticks, len(self.output_attributes)))
-			target = tf.reshape(target, (len(self.output_attributes),))
+			data = tf.reshape(data, self.data_shape)
+			target = tf.reshape(target, self.target_shape)
 			return data, target
 
 		features_description = {
