@@ -5,3 +5,6 @@
 
 ## model architecture  
 ![model architecture ](./resources/model_and_traider_UML.png)  
+
+## data structure  
+![data structure ](./resources/data_structure.png)  
