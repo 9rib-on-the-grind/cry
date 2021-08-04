@@ -1,5 +1,5 @@
 import collections
-
+from collections.abc import Iterable, Sequence
 
 
 
@@ -11,12 +11,12 @@ class DataMaintainer:
         maxlen: Int. Maximum length of deque for columns.
     """
 
-    def __init__(self, maxlen=2000):
+    def __init__(self, maxlen: int = 2000):
         self._data = collections.defaultdict(DataMaintainer)
         self.maxlen = maxlen
         self.update_hash = None
     
-    def __getitem__(self, keys):
+    def __getitem__(self, keys: Sequence):
         if not isinstance(keys, (tuple, list)):
             keys = (keys,)
         key, *other = keys
@@ -24,11 +24,14 @@ class DataMaintainer:
             raise KeyError(key)
         return self._data[key] if not other else self._data[key].__getitem__(other)
 
-    def construct_location(self, keys):
+    def construct_location(self, keys: Sequence):
         key, *other = keys
         return self._data[key] if not other else self._data[key].construct_location(other)
 
-    def add(self, data=None, keys=[], location=None, maxlen=None):
+    def add(self, data: Iterable[Sequence] = None, 
+                  keys: Iterable[str] = [], 
+                  location: Sequence[str] = None, 
+                  maxlen: int = None):
         """Add data into the DataMaintainer.
 
         Args:
@@ -44,7 +47,7 @@ class DataMaintainer:
             subunit._data[key] = collections.deque(column, maxlen=subunit.maxlen)
         return subunit
 
-    def append(self, data, keys='auto'):
+    def append(self, data: Iterable, keys: Iterable[str] = 'auto'):
         """Append elements in data to deque specified by key.
 
         Args:

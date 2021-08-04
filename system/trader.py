@@ -1,5 +1,7 @@
 import time
+from collections.abc import Mapping, Iterable
 
+import experts
 
 
 
@@ -21,10 +23,10 @@ class PairTrader(BaseTrader):
         self.profit = []
         self.time, self.times = 0, []
 
-    def set_expert(self, pair_expert):
-        self.expert = pair_expert
+    def set_expert(self, expert: experts.PairExpert):
+        self.expert = expert
 
-    def update(self, data):
+    def update(self, data: Mapping[str, Iterable]):
         """Update candlesticks data, update expert.
 
         Args:

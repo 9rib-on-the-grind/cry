@@ -2,9 +2,8 @@ import collections
 
 
 
-
 class BaseRollingWindow:
-    def __init__(self, length=None):
+    def __init__(self, length: int = None):
         self.length = length
         self._queue = collections.deque(maxlen=self.length)
         self._state = 0
@@ -18,7 +17,7 @@ class SimpleMovingAverage(BaseRollingWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def append(self, val):
+    def append(self, val: float):
         if len(self._queue) >= self.length:
             self._state -= self._queue.popleft() / self.length
         self._state += val / self.length
@@ -27,9 +26,9 @@ class SimpleMovingAverage(BaseRollingWindow):
 
 
 class ExponentialMovingAverage(BaseRollingWindow):
-    def __init__(self, alpha, **kwargs):
+    def __init__(self, alpha: float, **kwargs):
         super().__init__(**kwargs)
         self._alpha = alpha
 
-    def append(self, val):
+    def append(self, val: float):
         self._state = (1 - self._alpha) * self._state + self._alpha * val

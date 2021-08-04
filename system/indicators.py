@@ -1,5 +1,5 @@
 import rolling
-
+import data
 
 
 
@@ -14,7 +14,7 @@ class BaseIndicator:
 
     name = 'Base Indicator'
 
-    def __init__(self, data):
+    def __init__(self, data: data.DataMaintainer):
         self._state = None
         self.update_hash = None
         self._history = data['History']
@@ -40,7 +40,8 @@ class BaseIndicator:
 class MovingAverageIndicator(BaseIndicator):
     name = 'MA'
 
-    def __init__(self, data, length, source='Close', **kwargs):
+    def __init__(self, data: data.DataMaintainer, length: int, 
+                 source: str = 'Close', **kwargs):
         super().__init__(data, **kwargs)
 
         self.length = length
@@ -59,7 +60,7 @@ class MovingAverageIndicator(BaseIndicator):
     def get_state(self):
         return self._sma.get_state()
             
-    def update(self, val=None):
+    def update(self, val: float = None):
         initialization = (val is not None)
         val = val if val is not None else self._source[-1]
         if not self.is_updated() or initialization:
@@ -74,7 +75,8 @@ class MovingAverageIndicator(BaseIndicator):
 class RelativeStrengthIndexIndicator(BaseIndicator):
     name = 'RSI'
 
-    def __init__(self, data, length, source='Close', **kwargs):
+    def __init__(self, data: data.DataMaintainer, length: int, 
+                 source: str = 'Close', **kwargs):
         super().__init__(data, **kwargs)
 
         self.length = length
@@ -97,7 +99,7 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         rsi = 100 - 100 / (1 + rs)
         return rsi
             
-    def update(self, val=None):
+    def update(self, val: float = None):
         initialization = (val is not None)
         val = val if val is not None else self._source[-1]
         if not self.is_updated() or initialization:

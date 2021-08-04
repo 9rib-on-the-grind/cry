@@ -1,5 +1,5 @@
+import indicators
 from decision import Decision
-
 
 
 
@@ -12,7 +12,7 @@ class CrossoverState:
     def __init__(self):
         self._a = self._b = float('inf')
     
-    def update(self, a, b):
+    def update(self, a: float, b: float):
         """Update relative positions of two lines, return a and b dominance"""
         if a > b:
             self._a += 1
@@ -27,7 +27,7 @@ class CrossoverState:
 class BaseRule:
     name = 'Base Rule'
     
-    def __init__(self, patience=1):
+    def __init__(self, patience: int = 1):
         self._state = None
         self._patience = patience
 
@@ -46,7 +46,7 @@ class BaseCrossoverRule(BaseRule):
 
 
 class BaseTrasholdRule(BaseRule):
-    def __init__(self, lower, upper, **kwargs):
+    def __init__(self, lower: float, upper: float, **kwargs):
         super().__init__(**kwargs)
         self._upper = upper
         self._lower = lower
@@ -58,7 +58,8 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
         super().__init__(**kwargs)
         self.cross = CrossoverState()
 
-    def decide(self, slow, fast):
+    def decide(self, slow: indicators.MovingAverageIndicator, 
+                     fast: indicators.MovingAverageIndicator):
         buy, sell = self.cross.update(fast.get_state(), slow.get_state())
         if buy == self._patience:
             return Decision.BUY
@@ -70,7 +71,7 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
 
 
 class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
-    def __init__(self, lower, upper, **kwargs):
+    def __init__(self, lower: float, upper: float, **kwargs):
         """
         Args:
             offset. Float in (0, 50). Trashold levels are defined as 50 +- offset"""
@@ -78,7 +79,7 @@ class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
         self.lower_cross = CrossoverState()
         self.upper_cross = CrossoverState()
 
-    def decide(self, rsi):
+    def decide(self, rsi: indicators.RelativeStrengthIndexIndicator):
         val = rsi.get_state()
         buy, _ = self.lower_cross.update(self._lower, val)
         sell, _ = self.upper_cross.update(val, self._upper)

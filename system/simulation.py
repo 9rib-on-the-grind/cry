@@ -10,14 +10,14 @@ import experts
 
 
 class Simulation:
-    def simulate(self, history, n):
+    def simulate(self, history: pd.DataFrame, n: int):
         self.prepare_data(history, n)
         pair_trader = self.init_system()
         self.run(pair_trader)
 
         plot(self.new_history['Close'], pair_trader) 
 
-    def prepare_data(self, history, n):
+    def prepare_data(self, history: pd.DataFrame, n: int):
         self.pair = 'BTC/USDT'
         old_history, self.new_history = history.iloc[:-n], history.iloc[-n:-1]
 
@@ -47,7 +47,7 @@ class Simulation:
         pair_trader.set_expert(pair_exp)
         return pair_trader
 
-    def run(self, pair_trader):
+    def run(self, pair_trader: trader.PairTrader):
         for idx, row in self.new_history.iterrows():
             pair_trader.update({'1h': row})
             pair_trader.act()
@@ -55,7 +55,7 @@ class Simulation:
 
 
 
-def plot(close, pair_trader):
+def plot(close, pair_trader: trader.PairTrader):
     n = len(close)
     pair_trader.show_evaluation()
 
@@ -88,7 +88,7 @@ def config_ax(ax):
     ax.grid(True)
 
 
-def load_history(filename):
+def load_history(filename: str):
     data_dir = './data/act_data/BTCUSDT/'
     return pd.read_csv(data_dir + filename)
 

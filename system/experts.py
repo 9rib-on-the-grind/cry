@@ -1,5 +1,9 @@
+from collections.abc import Sequence
+
 import numpy as np
 
+import indicators
+import rules
 
 
 
@@ -11,7 +15,7 @@ class BaseExpert:
         self._inner_experts = None
         self._weights = np.ones((len(self._inner_experts), 1))
 
-    def set_experts(self, experts):
+    def set_experts(self, experts: Sequence):
         self._inner_experts = experts
     
     def estimate(self):
@@ -32,7 +36,7 @@ class PairExpert(BaseExpert):
         quote: String. Name of quote currency.
     """
 
-    def __init__(self, base, quote):
+    def __init__(self, base: str, quote: str):
         self.name = f'{base}/{quote} Expert'
 
 
@@ -44,7 +48,7 @@ class TimeFrameExpert(BaseExpert):
         timeframe: String. Name of timeframe (Example: '1h').
     """
 
-    def __init__(self, timeframe):
+    def __init__(self, timeframe: str):
         self.timeframe = timeframe
         self.name = f'{timeframe} Expert'
 
@@ -58,7 +62,7 @@ class RuleExpert(BaseExpert):
         rule: BaseRule. Trading rule that applies to indicators.
     """
 
-    def __init__(self, indicators, rule):
+    def __init__(self, indicators: Sequence[indicators.BaseIndicator], rule: rules.BaseRule):
         self._indicators = indicators
         self._rule = rule
         self.name = f'{self._rule.name} {str([indicator.name for indicator in self._indicators])}'
