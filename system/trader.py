@@ -39,9 +39,9 @@ class PairTrader(BaseTrader):
         self.expert.update()
 
 
-    def act(self):
+    def act(self, timeframe):
         estimation = self.expert.estimate()
-        price = self.data['1h', 'History', 'Close'][-1]
+        price = self.data[timeframe, 'History', 'Close'][-1]
         if estimation > self.trashold and self.balance > 0: # buy
             self.quantity = self.balance / price
             self.times.append(self.time)
