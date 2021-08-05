@@ -3,6 +3,8 @@ import collections
 
 import numpy as np
 
+import experts
+
 
 
 def create_searchspace_config():
@@ -45,8 +47,25 @@ def create_searchspace_config():
 		'length': length
 	}
 
-	json.dump(data, cfg_file, sort_keys=False, indent=4)
+	json.dump(data, cfg_file, indent=4)
 
+def serialize_expert_to_json(filename: str = 'expert.json',
+							 expert: experts.BaseExpert = None):
+	def get_hierarchy(expert: experts.BaseExpert):
+		state = {}
+		state['name'] = expert.name
+		if isinstance(expert, experts.RuleExpert):
+			rule, indicators = expert._rule, expert._indicators
+			state['rule'] = {'name': rule.__class__.__name__, 'parameters': rule.get_parameters()}
+			state['indicators'] = [{'name': indicator.__class__.__name__, 
+									'parameters': indicator.get_parameters()} 
+																for indicator in indicators]
+		else:
+			state['inner experts'] = [get_hierarchy(exp) for exp in expert._inner_experts]
+		return state
+
+	hierarchy = get_hierarchy(expert)
+	json.dump(hierarchy, open(filename, 'w'), indent=4)
 
 
 if __name__ == '__main__':
