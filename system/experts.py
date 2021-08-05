@@ -27,6 +27,11 @@ class BaseExpert:
         for expert in self._inner_experts:
             expert.update()
 
+    def show(self, indentation=0):
+        print(' ' * indentation + self.name)
+        for expert in self._inner_experts:
+            expert.show(indentation + 10)
+
 
 class PairExpert(BaseExpert):
     """Expert class for handling specific trading pair.
@@ -65,7 +70,7 @@ class RuleExpert(BaseExpert):
     def __init__(self, indicators: Sequence[indicators.BaseIndicator], rule: rules.BaseRule):
         self._indicators = indicators
         self._rule = rule
-        self.name = f'{self._rule.name} {str([indicator.name for indicator in self._indicators])}'
+        self.name = f'[{self._rule.name}] {str([indicator.name for indicator in self._indicators])}'
 
     def set_experts(self):
         raise SystemError('Do not call this method')
@@ -76,3 +81,6 @@ class RuleExpert(BaseExpert):
     def update(self):
         for indicator in self._indicators:
             indicator.update()
+
+    def show(self, indentation):
+        print(' ' * indentation + self.name)
