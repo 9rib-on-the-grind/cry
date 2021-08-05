@@ -30,6 +30,10 @@ class BaseRule:
     def __init__(self, patience: int = 1):
         self._state = None
         self._patience = patience
+        self.set_name()
+
+    def set_name(self):
+        self.name = f'{self.name} {self.get_parameters()}'
 
     def update(self):
         raise NotImplementedError()
@@ -47,13 +51,15 @@ class BaseCrossoverRule(BaseRule):
 
 class BaseTrasholdRule(BaseRule):
     def __init__(self, lower: float, upper: float, **kwargs):
-        super().__init__(**kwargs)
         self._upper = upper
         self._lower = lower
+        super().__init__(**kwargs)
 
 
 
 class MovingAverageCrossoverRule(BaseCrossoverRule):
+    name = 'MACrossover'
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.cross = CrossoverState()
@@ -68,9 +74,14 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
         else:
             return Decision.WAIT
 
+    def get_parameters(self):
+        return self._patience
+
 
 
 class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
+    name = 'RSITrashold'
+
     def __init__(self, lower: float, upper: float, **kwargs):
         """
         Args:
@@ -89,3 +100,6 @@ class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
             return Decision.SELL
         else:
             return Decision.WAIT
+
+    def get_parameters(self):
+        return [self._lower, self._upper, self._patience]
