@@ -50,7 +50,7 @@ class Trainer:
 
     def best_rule_experts(self, candidates: list[tuple['profit', 'expert']], 
                                 trashold: float = None,
-                                nbest: int = None) -> list[experts.RuleExpert] -> list[experts.RuleExpert]:
+                                nbest: int = None) -> list[experts.RuleExpert]:
         if trashold is not None:
             return [expert for profit, expert in candidates if profit > trashold]
         elif nbest is not None:

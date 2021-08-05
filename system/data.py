@@ -1,3 +1,4 @@
+from __future__ import annotations
 import collections
 from collections.abc import Iterable, Sequence
 
@@ -16,7 +17,7 @@ class DataMaintainer:
         self.maxlen = maxlen
         self.update_hash = None
     
-    def __getitem__(self, keys: Sequence):
+    def __getitem__(self, keys: Sequence) -> DataMaintainer:
         if not isinstance(keys, (tuple, list)):
             keys = (keys,)
         key, *other = keys
@@ -54,7 +55,7 @@ class DataMaintainer:
             keys: Iterable (optional). Contains keys for columns in same order.
                   By default keys are in the same order they were added.
         """
-        
+
         keys = self._data.keys() if keys == 'auto' else keys
         for key, value in zip(keys, data):
             self._data[key].append(value)
