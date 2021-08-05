@@ -11,6 +11,7 @@ import indicators
 import trader
 import experts
 import data
+import config_creation
 
 
 
@@ -47,6 +48,7 @@ class Trainer:
 
         pair_expert.set_experts(timeframe_lst)
         pair_expert.show()
+        config_creation.serialize_expert_to_json(expert=pair_expert)
 
     def best_rule_experts(self, candidates: list[tuple['profit', 'expert']], 
                                 trashold: float = None,
