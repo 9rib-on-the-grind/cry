@@ -25,27 +25,32 @@ def create_searchspace_config():
 	"""
 	Structure:
 		rule: {
-			'rule': {atribute: search_space}
-			'indicators': {indicator: {atribute: search_space}}
+			'parameters': {atribute: search_space}
+			'indicators': [
+				{
+					'name': string,
+					'parameters': {atribute: search_space}
+				}
+			]
 		}
 	"""
 
 	# MACrossover
-	data['MovingAverageCrossoverRule']['rule'] = {'patience': patience}
-	for i in range(2):
-		data['MovingAverageCrossoverRule']['indicators'][f'MovingAverageIndicator {i + 1}'] = {
-			'length': length
-		}
+	data['MovingAverageCrossoverRule']['parameters'] = {'patience': patience}
+	data['MovingAverageCrossoverRule']['indicators'] = [
+		{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
+		{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
+	]
 
 	# RSITrashold
-	data['RelativeStrengthIndexTrasholdRule']['rule'] = {
+	data['RelativeStrengthIndexTrasholdRule']['parameters'] = {
 		'patience': patience,
 		'lower': list(range(20, 45, 10)),
 		'upper': list(range(60, 85, 10)),
 	}
-	data['RelativeStrengthIndexTrasholdRule']['indicators']['RelativeStrengthIndexIndicator'] = {
-		'length': length
-	}
+	data['RelativeStrengthIndexTrasholdRule']['indicators'] = [
+		{'name': 'RelativeStrengthIndexIndicator', 'parameters': {'length': length}}
+	]
 
 	json.dump(data, cfg_file, indent=4)
 

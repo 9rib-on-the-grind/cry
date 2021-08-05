@@ -66,18 +66,19 @@ class Trainer:
         cfg = json.load(open(cfg, 'r'))
         rule_name = rule_cls.__name__
 
-        rule_searchspace = cfg[rule_name]['rule']
-        inds_searchspace = cfg[rule_name]['indicators']
-        indicators_cls_names = list(inds_searchspace.keys())
-        indicators_keys = [list(ind.keys()) for ind in inds_searchspace.values()]
+        rule_parameters = cfg[rule_name]['parameters']
+        indicators_parameters = cfg[rule_name]['indicators']
+        indicators_cls_names = list(ind['name'] for ind in indicators_parameters)
+        indicators_keys = [ind['parameters'].keys() for ind in indicators_parameters]
 
         search = []
 
-        for rule_params in product(*rule_searchspace.values()):
-            keys = list(rule_searchspace)
+        for rule_params in product(*rule_parameters.values()):
+            keys = list(rule_parameters)
             rule_kwargs = {key: val for key, val in zip(keys, rule_params)}
             
-            for inds_params in product(*[product(*ind.values()) for ind in inds_searchspace.values()]):
+            indicator_comb = [product(*ind['parameters'].values()) for ind in indicators_parameters]
+            for inds_params in product(*indicator_comb):
                 indicators_lst = []
                 for cls_name, (keys, params) in zip(indicators_cls_names, zip(indicators_keys, inds_params)):
                     cls_name = list(cls_name.split())[0]
