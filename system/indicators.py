@@ -14,9 +14,11 @@ class BaseIndicator:
 
     name = 'Base Indicator'
 
-    def __init__(self, data: data.DataMaintainer):
+    def __init__(self):
         self._state = None
         self.update_hash = None
+
+    def set_data(self, data: data.DataMaintainer):
         self._history = data['History']
 
     def set_name(self):
@@ -40,9 +42,8 @@ class BaseIndicator:
 class MovingAverageIndicator(BaseIndicator):
     name = 'MA'
 
-    def __init__(self, data: data.DataMaintainer, length: int, 
-                 source: str = 'Close', **kwargs):
-        super().__init__(data, **kwargs)
+    def __init__(self, length: int, source: str = 'Close', **kwargs):
+        super().__init__(**kwargs)
 
         self.length = length
         self.source_name = source
@@ -50,6 +51,8 @@ class MovingAverageIndicator(BaseIndicator):
 
         self._sma = rolling.SimpleMovingAverage(length=self.length)
 
+    def set_data(self, data: data.DataMaintainer):
+        super().set_data(data)
         self._source = self._history[self.source_name]
         self.init_state()
 
@@ -75,9 +78,8 @@ class MovingAverageIndicator(BaseIndicator):
 class RelativeStrengthIndexIndicator(BaseIndicator):
     name = 'RSI'
 
-    def __init__(self, data: data.DataMaintainer, length: int, 
-                 source: str = 'Close', **kwargs):
-        super().__init__(data, **kwargs)
+    def __init__(self, length: int, source: str = 'Close', **kwargs):
+        super().__init__(**kwargs)
 
         self.length = length
         self.source_name = source
@@ -86,6 +88,8 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         self._up_smma = rolling.ExponentialMovingAverage(alpha=1/self.length)
         self._down_smma = rolling.ExponentialMovingAverage(alpha=1/self.length)
 
+    def set_data(self, data: data.DataMaintainer):
+        super().set_data(data)
         self._source = self._history[self.source_name]
         self.init_state()
 
