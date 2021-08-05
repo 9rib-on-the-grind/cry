@@ -12,8 +12,8 @@ def create_searchspace_config():
 		return list(map(int, space))
 
 
-	length = get_logspace(.7, 2.5, 20)
-	patience = list(range(1, 8, 1))
+	length = get_logspace(.7, 2.5, 5)
+	patience = list(range(2, 8, 2))
 
 	cfg_file = open('searchspace.json', 'w')
 
@@ -39,8 +39,8 @@ def create_searchspace_config():
 	# RSITrashold
 	data['RelativeStrengthIndexTrasholdRule']['rule'] = {
 		'patience': patience,
-		'lower': list(range(20, 45, 5)),
-		'upper': list(range(60, 85, 5)),
+		'lower': list(range(20, 45, 10)),
+		'upper': list(range(60, 85, 10)),
 	}
 	data['RelativeStrengthIndexTrasholdRule']['indicators']['RelativeStrengthIndexIndicator'] = {
 		'length': length
