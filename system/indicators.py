@@ -71,7 +71,7 @@ class MovingAverageIndicator(BaseIndicator):
             self._sma.append(val)
 
     def get_parameters(self):
-        return [self.length, self.source_name]
+        return {'length': self.length, 'source': self.source_name}
 
 
 
@@ -116,4 +116,4 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
             self._prev = val
             
     def get_parameters(self):
-        return [self.length, self.source_name]
+        return {'length': self.length, 'source': self.source_name}

@@ -75,7 +75,7 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
             return Decision.WAIT
 
     def get_parameters(self):
-        return self._patience
+        return {'patience': self._patience}
 
 
 
@@ -102,4 +102,6 @@ class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
             return Decision.WAIT
 
     def get_parameters(self):
-        return [self._lower, self._upper, self._patience]
+        return {'lower': self._lower, 
+                'upper': self._upper, 
+                'patience': self._patience}
