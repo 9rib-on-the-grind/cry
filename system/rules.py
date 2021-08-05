@@ -30,10 +30,6 @@ class BaseRule:
     def __init__(self, patience: int = 1):
         self._state = None
         self._patience = patience
-        self.set_name()
-
-    def set_name(self):
-        self.name = f'{self.name} {self.get_parameters()}'
 
     def update(self):
         raise NotImplementedError()

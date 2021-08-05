@@ -11,7 +11,7 @@ class BaseExpert:
     """Base Expert class for decision making."""
 
     def __init__(self):
-        self.name = 'Base Expert'
+        self.name = 'BaseExpert'
         self._inner_experts = None
         self._weights = np.ones((len(self._inner_experts), 1))
 
@@ -42,7 +42,7 @@ class PairExpert(BaseExpert):
     """
 
     def __init__(self, base: str, quote: str):
-        self.name = f'{base}/{quote} Expert'
+        self.name = f'PairExpert [{base}/{quote}]'
 
 
 
@@ -55,7 +55,7 @@ class TimeFrameExpert(BaseExpert):
 
     def __init__(self, timeframe: str):
         self.timeframe = timeframe
-        self.name = f'{timeframe} Expert'
+        self.name = f'TimeFrameExpert [{timeframe}]'
 
 
 
@@ -70,7 +70,9 @@ class RuleExpert(BaseExpert):
     def __init__(self, indicators: Sequence[indicators.BaseIndicator], rule: rules.BaseRule):
         self._indicators = indicators
         self._rule = rule
-        self.name = f'[{self._rule.name}] {str([indicator.name for indicator in self._indicators])}'
+        # self.name = f'[{self._rule.name}] {str([indicator.name for indicator in self._indicators])}'
+        indicator_names = [indicator.name for indicator in self._indicators]
+        self.name = f'RuleExpert [{self._rule.name}, {str(indicator_names)}]'
 
     def set_experts(self):
         raise SystemError('Do not call this method')
@@ -83,4 +85,5 @@ class RuleExpert(BaseExpert):
             indicator.update()
 
     def show(self, indentation):
-        print(' ' * indentation + self.name)
+        name = f'[{self._rule.name}] {str([indicator.name for indicator in self._indicators])}'
+        print(' ' * indentation + name)
