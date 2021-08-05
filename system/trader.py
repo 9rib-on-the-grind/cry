@@ -22,6 +22,7 @@ class PairTrader(BaseTrader):
         self.trades = []
         self.profit = []
         self.time, self.times = 0, []
+        self.commision = .00075
 
     def set_expert(self, expert: experts.PairExpert):
         self.expert = expert
@@ -33,11 +34,11 @@ class PairTrader(BaseTrader):
             data: Dictionary that maps timeframe name to new candlestick
             (Example: '1h' -> [...])
         """
+        
         for timeframe, data in data.items():
             self.data[timeframe, 'History'].append(data)
             self.data[timeframe, 'History'].set_update_hash(time.time())
         self.expert.update()
-
 
     def act(self, timeframe):
         estimation = self.expert.estimate()
@@ -54,7 +55,6 @@ class PairTrader(BaseTrader):
             self.profit.append(self.evaluate_profit())
             self.quantity = 0
         self.time += 1
-
 
     def show_evaluation(self):
         if self.quantity > 0:

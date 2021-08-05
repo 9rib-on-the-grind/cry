@@ -22,7 +22,7 @@ class BaseIndicator:
         self._history = data['History']
 
     def set_name(self):
-        return f'{self.name} {self.get_parameters()}'
+        self.name = f'{self.name} {self.get_parameters()}'
 
     def get_parameters(self):
         raise NotImplementedError()
@@ -47,7 +47,7 @@ class MovingAverageIndicator(BaseIndicator):
 
         self.length = length
         self.source_name = source
-        self.name = self.set_name()
+        self.set_name()
 
         self._sma = rolling.SimpleMovingAverage(length=self.length)
 
@@ -83,7 +83,7 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
 
         self.length = length
         self.source_name = source
-        self.name = self.set_name()
+        self.set_name()
 
         self._up_smma = rolling.ExponentialMovingAverage(alpha=1/self.length)
         self._down_smma = rolling.ExponentialMovingAverage(alpha=1/self.length)

@@ -23,12 +23,7 @@ class Trainer:
     def __init__(self):
         pass
 
-
-
-
-
     def construct_system(self):
-
         pair = 'BTC/USDT'
         timeframes = ['1d', '4h', '15m', '1m']
         timeframes = ['1d', '4h', '1h']
@@ -53,11 +48,9 @@ class Trainer:
         pair_expert.set_experts(timeframe_lst)
         pair_expert.show()
 
-
-
     def best_rule_experts(self, candidates: list[tuple['profit', 'expert']], 
                                 trashold: float = None,
-                                nbest: int = None) -> list[experts.RuleExpert]:
+                                nbest: int = None) -> list[experts.RuleExpert] -> list[experts.RuleExpert]:
         if trashold is not None:
             return [expert for profit, expert in candidates if profit > trashold]
         elif nbest is not None:
@@ -97,18 +90,14 @@ class Trainer:
         for idx, (rule, inds) in enumerate(search):
             expert = experts.RuleExpert(inds, rule)
             trades, profit = self.simulate_rule_expert(pair=pair, timeframe=timeframe, rule_expert=expert)
-            # print(f'iter [ {idx:>3} / {len(search):>3} ] : {expert.name}')
-            # print(f'{trades} trades, profit : {profit:.2f} %')
             res.append((profit, expert))
         return res
-
-
 
     def simulate_rule_expert(
             self, pair: str = 'BTC/USDT', 
                   timeframe: str = '1h',
                   n: int = 1000,
-                  rule_expert: experts.RuleExpert = None):
+                  rule_expert: experts.RuleExpert = None) -> tuple['number of trades', 'profit']:
 
         history = self.load_history(pair, timeframe)
         init, new = history.iloc[-n-1000:-n], history.iloc[-n:-1].values
@@ -128,17 +117,13 @@ class Trainer:
             pair_trader.act(timeframe)
         return len(pair_trader.trades), pair_trader.profit[-1] if pair_trader.profit else 0
 
-
-    def load_history(self, pair: str = 'BTC/USDT', timeframe: str = '1h'):
+    def load_history(self, pair: str = 'BTC/USDT', timeframe: str = '1h') -> pd.DataFrame:
         pair = pair.replace('/', '')
         filename = f'data/{pair}/{timeframe}.csv'
         return pd.read_csv(filename)
 
 
 
-
-
 if __name__ == '__main__':
     trainer = Trainer()
-    # trainer.search(rule_cls=rules.MovingAverageCrossoverRule)
     trainer.construct_system()

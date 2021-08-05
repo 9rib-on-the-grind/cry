@@ -24,7 +24,7 @@ class DataMaintainer:
             raise KeyError(key)
         return self._data[key] if not other else self._data[key].__getitem__(other)
 
-    def construct_location(self, keys: Sequence):
+    def construct_location(self, keys: Sequence) -> DataMaintainer:
         key, *other = keys
         return self._data[key] if not other else self._data[key].construct_location(other)
 
@@ -45,7 +45,6 @@ class DataMaintainer:
         subunit.maxlen = maxlen if maxlen is not None else self.maxlen
         for key, column in zip(keys, data if data is not None else [[] * len(keys)]):
             subunit._data[key] = collections.deque(column, maxlen=subunit.maxlen)
-        return subunit
 
     def append(self, data: Iterable, keys: Iterable[str] = 'auto'):
         """Append elements in data to deque specified by key.
@@ -55,6 +54,7 @@ class DataMaintainer:
             keys: Iterable (optional). Contains keys for columns in same order.
                   By default keys are in the same order they were added.
         """
+        
         keys = self._data.keys() if keys == 'auto' else keys
         for key, value in zip(keys, data):
             self._data[key].append(value)
