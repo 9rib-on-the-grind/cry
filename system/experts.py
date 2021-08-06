@@ -13,7 +13,8 @@ class BaseExpert:
     def __init__(self):
         self.name = 'BaseExpert'
         self._inner_experts = None
-        self._weights = np.ones((len(self._inner_experts), 1))
+        self._weights = None
+        self._estimated_profit = None
 
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
@@ -27,10 +28,10 @@ class BaseExpert:
         for expert in self._inner_experts:
             expert.update()
 
-    def show(self, indentation=0):
+    def show(self, indentation=0, detailed=False):
         print(' ' * indentation + self.name)
         for expert in self._inner_experts:
-            expert.show(indentation + 10)
+            expert.show(indentation + 10, detailed=detailed)
 
 
 class PairExpert(BaseExpert):
@@ -42,6 +43,7 @@ class PairExpert(BaseExpert):
     """
 
     def __init__(self, base: str, quote: str):
+        super().__init__()
         self.name = f'PairExpert [{base}/{quote}]'
 
 
@@ -54,6 +56,7 @@ class TimeFrameExpert(BaseExpert):
     """
 
     def __init__(self, timeframe: str):
+        super().__init__()
         self.timeframe = timeframe
         self.name = f'TimeFrameExpert [{timeframe}]'
 
@@ -68,6 +71,7 @@ class RuleExpert(BaseExpert):
     """
 
     def __init__(self, rule: rules.BaseRule, indicators: Sequence[indicators.BaseIndicator]):
+        super().__init__()
         self._rule = rule
         self._indicators = indicators
         indicator_names = [indicator.name for indicator in self._indicators]
@@ -83,6 +87,12 @@ class RuleExpert(BaseExpert):
         for indicator in self._indicators:
             indicator.update()
 
-    def show(self, indentation):
-        name = f'[{self._rule.name}] {str([indicator.name for indicator in self._indicators])}'
+    def show(self, indentation, detailed):
+        if detailed:
+            rule_name = f'{self._rule.name}, {self._rule.get_parameters()}'
+            inds_names = f'{str([(ind.name, ind.get_parameters()) for ind in self._indicators])}'
+            profit = f'{self._estimated_profit:.2f} %' if self._estimated_profit is not None else 'unknown'
+            name = f'{rule_name:<80} {inds_names:<100} {profit}'
+        else:
+            name = self.name
         print(' ' * indentation + name)

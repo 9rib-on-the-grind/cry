@@ -47,7 +47,7 @@ class Trainer:
             timeframe_lst.append(timeframe_expert)
 
         pair_expert.set_experts(timeframe_lst)
-        pair_expert.show()
+        pair_expert.show(detailed=True)
         config_creation.serialize_expert_to_json(expert=pair_expert)
 
     def get_candidates(self, pair: str,
@@ -88,6 +88,7 @@ class Trainer:
         estimations = []
         for expert in experts:
             profit, ntrades = self.simulate_rule_expert(pair=pair, timeframe=timeframe, rule_expert=expert)
+            expert._estimated_profit = profit
             estimations.append((profit, expert))
         return estimations
 
