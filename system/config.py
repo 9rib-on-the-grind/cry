@@ -115,19 +115,24 @@ def serialize_expert_to_json(filename: str = 'expert.json',
 
 	def get_hierarchy(expert: experts.BaseExpert):
 		state = {}
-		state['name'] = expert.name
+		state['name'] = expert.__class__.__name__
+		state['parameters'] = expert.get_parameters()
 		if isinstance(expert, experts.RuleExpert):
 			rule, indicators = expert._rule, expert._indicators
-			state['rule'] = {'name': rule.__class__.__name__, 'parameters': rule.get_parameters()}
-			state['indicators'] = [{'name': indicator.__class__.__name__, 
-									'parameters': indicator.get_parameters()} 
-																for indicator in indicators]
+			rule = {'name': rule.__class__.__name__, 'parameters': rule.get_parameters()}
+			indicators = [{'name': indicator.__class__.__name__, 
+						   'parameters': indicator.get_parameters()} 
+													for indicator in indicators]
+			state['parameters'] = {'rule': rule, 'indicators': indicators}
 		else:
 			state['inner experts'] = [get_hierarchy(exp) for exp in expert._inner_experts]
 		return state
 
 	hierarchy = get_hierarchy(expert)
 	json.dump(hierarchy, open(filename, 'w'), indent=4)
+
+def deserialize_expert_from_json(filename: str = 'expert.json'):
+	hierarchy = json.load(open(filename, 'w'))
 
 
 if __name__ == '__main__':
