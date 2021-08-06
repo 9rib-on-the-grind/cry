@@ -37,70 +37,74 @@ class Trainer:
 
         for timeframe in timeframes:
             print(timeframe)
-            rule_lst = []
-            for rule_cls in self.rule_classes:
-                candidates = self.search(pair=pair, timeframe=timeframe, rule_cls=rule_cls)
-                rule_lst.extend(self.best_rule_experts(candidates, nbest=10))
+            candidates = [expert for rule_cls in self.rule_classes 
+                                 for expert in self.get_candidates(pair, timeframe, rule_cls)]
+            estimations = self.estimate_experts(pair, timeframe, candidates)
+            chosen = self.best_rule_experts(estimations, percent=.2)
             
             timeframe_expert = experts.TimeFrameExpert(timeframe)
-            timeframe_expert.set_experts(rule_lst)
+            timeframe_expert.set_experts(chosen)
             timeframe_lst.append(timeframe_expert)
 
         pair_expert.set_experts(timeframe_lst)
         pair_expert.show()
         config_creation.serialize_expert_to_json(expert=pair_expert)
 
-    def best_rule_experts(self, candidates: list[tuple['profit', 'expert']], 
-                                trashold: float = None,
-                                nbest: int = None) -> list[experts.RuleExpert]:
-        if trashold is not None:
-            return [expert for profit, expert in candidates if profit > trashold]
-        elif nbest is not None:
-            return [expert for profit, expert in heapq.nlargest(nbest, candidates, key=lambda x: x[0])]
-
-    def search(self, cfg: str = 'searchspace.json',
-                     pair: str = 'BTC/USDT',
-                     timeframe: str = '1h',
-                     rule_cls: rules.BaseRule = None) -> list[tuple['profit', 'expert']]:
+    def get_candidates(self, pair: str,
+                             timeframe: str,
+                             rule_cls: rules.BaseRule,
+                             cfg: str = 'searchspace.json') -> list[experts.RuleExpert]:
 
         cfg = json.load(open(cfg, 'r'))
         rule_name = rule_cls.__name__
 
         rule_parameters = cfg[rule_name]['parameters']
-        indicators_parameters = cfg[rule_name]['indicators']
-        indicators_cls_names = list(ind['name'] for ind in indicators_parameters)
-        indicators_keys = [ind['parameters'].keys() for ind in indicators_parameters]
+        indicators_lst = cfg[rule_name]['indicators']
+        indicator_cls_names = list(ind['name'] for ind in indicators_lst)
+        indicator_parameters = [ind['parameters'] for ind in indicators_lst]
 
-        search = []
+        candidates = []
 
         for rule_params in product(*rule_parameters.values()):
-            keys = list(rule_parameters)
-            rule_kwargs = {key: val for key, val in zip(keys, rule_params)}
+            rule_kwargs = {key: val for key, val in zip(list(rule_parameters), rule_params)}
             
-            indicator_comb = [product(*ind['parameters'].values()) for ind in indicators_parameters]
-            for inds_params in product(*indicator_comb):
-                indicators_lst = []
-                for cls_name, (keys, params) in zip(indicators_cls_names, zip(indicators_keys, inds_params)):
-                    cls_name = list(cls_name.split())[0]
-                    ind_kwargs = {key: val for key, val in zip(keys, params)}
-                    indicator = getattr(indicators, cls_name)
-                    indicators_lst.append(indicator(**ind_kwargs))
+            indicator_combinations = [product(*ind.values()) for ind in indicator_parameters]
+            for inds_params in product(*indicator_combinations):
+                lst = []
+                for cls_name, (attrs, params) in zip(indicator_cls_names, 
+                                                     zip((param.keys() for param in indicator_parameters), inds_params)):
+                    indicator_kwargs = {attr: val for attr, val in zip(attrs, params)}
+                    indicator_cls = getattr(indicators, cls_name)
+                    lst.append(indicator_cls(**indicator_kwargs))
 
                 rule = rule_cls(**rule_kwargs)
-                search.append((rule, indicators_lst))
+                candidates.append(experts.RuleExpert(rule, lst))
 
-        res = []
-        for idx, (rule, inds) in enumerate(search):
-            expert = experts.RuleExpert(inds, rule)
-            trades, profit = self.simulate_rule_expert(pair=pair, timeframe=timeframe, rule_expert=expert)
-            res.append((profit, expert))
-        return res
+        return candidates
 
-    def simulate_rule_expert(
-            self, pair: str = 'BTC/USDT', 
-                  timeframe: str = '1h',
-                  n: int = 1000,
-                  rule_expert: experts.RuleExpert = None) -> tuple['number of trades', 'profit']:
+    def estimate_experts(self, pair: str,
+                               timeframe: str,
+                               experts: list[experts.RuleExpert]) -> list[tuple['profit', experts.RuleExpert]]:
+        estimations = []
+        for expert in experts:
+            profit, ntrades = self.simulate_rule_expert(pair=pair, timeframe=timeframe, rule_expert=expert)
+            estimations.append((profit, expert))
+        return estimations
+
+    def best_rule_experts(self, candidates: list[tuple['profit', 'expert']], *,
+                                trashold: float = None,
+                                nbest: int = None,
+                                percent: 'float (0, 1)' = None) -> list[experts.RuleExpert]:
+        nbest = nbest if percent is None else int(percent * len(candidates))
+        if trashold is not None:
+            return [expert for profit, expert in candidates if profit > trashold]
+        elif nbest is not None:
+            return [expert for profit, expert in heapq.nlargest(nbest, candidates, key=lambda x: x[0])]
+
+    def simulate_rule_expert(self, pair: str, 
+                                   timeframe: str,
+                                   rule_expert: experts.RuleExpert,
+                                   n: int = 1000) -> tuple['profit', 'number of trades']:
 
         history = self.load_history(pair, timeframe)
         init, new = history.iloc[-n-1000:-n], history.iloc[-n:-1].values
@@ -118,7 +122,7 @@ class Trainer:
         for update in new:
             pair_trader.update({timeframe: update})
             pair_trader.act(timeframe)
-        return len(pair_trader.trades), pair_trader.profit[-1] if pair_trader.profit else 0
+        return pair_trader.profit[-1] if pair_trader.profit else 0, len(pair_trader.trades)
 
     def load_history(self, pair: str = 'BTC/USDT', timeframe: str = '1h') -> pd.DataFrame:
         pair = pair.replace('/', '')

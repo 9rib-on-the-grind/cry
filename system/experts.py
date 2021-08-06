@@ -67,10 +67,9 @@ class RuleExpert(BaseExpert):
         rule: BaseRule. Trading rule that applies to indicators.
     """
 
-    def __init__(self, indicators: Sequence[indicators.BaseIndicator], rule: rules.BaseRule):
-        self._indicators = indicators
+    def __init__(self, rule: rules.BaseRule, indicators: Sequence[indicators.BaseIndicator]):
         self._rule = rule
-        # self.name = f'[{self._rule.name}] {str([indicator.name for indicator in self._indicators])}'
+        self._indicators = indicators
         indicator_names = [indicator.name for indicator in self._indicators]
         self.name = f'RuleExpert [{self._rule.name}, {str(indicator_names)}]'
 
