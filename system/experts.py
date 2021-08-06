@@ -18,6 +18,9 @@ class BaseExpert:
 
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
+
+    def get_parameters(self):
+        raise NotImplementedError()
     
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
@@ -44,7 +47,11 @@ class PairExpert(BaseExpert):
 
     def __init__(self, base: str, quote: str):
         super().__init__()
+        self.base, self.quote = base, quote
         self.name = f'PairExpert [{base}/{quote}]'
+
+    def get_parameters(self):
+        return {'base': self.base, 'quote': self.quote}
 
 
 
@@ -59,6 +66,9 @@ class TimeFrameExpert(BaseExpert):
         super().__init__()
         self.timeframe = timeframe
         self.name = f'TimeFrameExpert [{timeframe}]'
+
+    def get_parameters(self):
+        return {'timeframe': self.timeframe}
 
 
 
@@ -79,6 +89,9 @@ class RuleExpert(BaseExpert):
 
     def set_experts(self):
         raise SystemError('Do not call this method')
+
+    def get_parameters(self):
+        return {}
 
     def estimate(self):
         return self._rule.decide(*self._indicators)
