@@ -44,12 +44,12 @@ class PairTrader(BaseTrader):
         estimation = self.expert.estimate()
         price = self.data[timeframe, 'History', 'Close'][-1]
         if estimation > self.trashold and self.balance > 0: # buy
-            self.quantity = self.balance / price
+            self.quantity = (1 - self.commision) * self.balance / price
             self.times.append(self.time)
             self.trades.append(('buy', self.quantity, price))
             self.balance = 0
         elif estimation < -self.trashold and self.quantity > 0: # sell
-            self.balance = self.quantity * price
+            self.balance = (1 - self.commision) * self.quantity * price
             self.times.append(self.time)
             self.trades.append(('sell', self.quantity, price))
             self.profit.append(self.evaluate_profit())
