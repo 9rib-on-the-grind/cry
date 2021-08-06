@@ -28,8 +28,8 @@ class Trainer:
         pair = 'BTC/USDT'
         timeframes = ['1d', '4h', '15m', '1m']
         timeframes = ['1d', '4h', '1h']
-        # timeframes = ['1d', '4h']
-        # timeframes = ['1d']
+        timeframes = ['1d', '4h']
+        timeframes = ['1d']
         base, quote = pair.split('/')
 
         pair_expert = experts.PairExpert(base, quote)
@@ -49,6 +49,8 @@ class Trainer:
         pair_expert.set_experts(timeframe_lst)
         pair_expert.show(detailed=True)
         config.serialize_expert_to_json(expert=pair_expert)
+        pair_expert = config.deserialize_expert_from_json()
+        pair_expert.show(detailed=True)
 
     def estimate_experts(self, pair: str,
                                timeframe: str,
