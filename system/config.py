@@ -1,10 +1,12 @@
 import json
 import collections
+from itertools import product
 
 import numpy as np
 
 import experts
-
+import indicators
+import rules
 
 
 def create_searchspace_config():
@@ -55,6 +57,35 @@ def create_searchspace_config():
 	]
 
 	json.dump(data, cfg_file, indent=4)
+
+def get_experts_from_searchspace(rule_cls: rules.BaseRule,
+                             	 cfg: str = 'searchspace.json') -> list[experts.RuleExpert]:
+
+        cfg = json.load(open(cfg, 'r'))
+        rule_name = rule_cls.__name__
+
+        rule_parameters = cfg[rule_name]['parameters']
+        indicators_lst = cfg[rule_name]['indicators']
+        indicator_cls_names = list(ind['name'] for ind in indicators_lst)
+        indicator_parameters = [ind['parameters'] for ind in indicators_lst]
+
+        res = []
+        for rule_params in product(*rule_parameters.values()):
+            rule_kwargs = {key: val for key, val in zip(list(rule_parameters), rule_params)}
+            
+            indicator_combinations = [product(*ind.values()) for ind in indicator_parameters]
+            for inds_params in product(*indicator_combinations):
+                lst = []
+                for cls_name, (attrs, params) in zip(indicator_cls_names, 
+                                                     zip((param.keys() for param in indicator_parameters), inds_params)):
+                    indicator_kwargs = {attr: val for attr, val in zip(attrs, params)}
+                    indicator_cls = getattr(indicators, cls_name)
+                    lst.append(indicator_cls(**indicator_kwargs))
+
+                rule = rule_cls(**rule_kwargs)
+                res.append(experts.RuleExpert(rule, lst))
+
+        return res
 
 def serialize_expert_to_json(filename: str = 'expert.json',
 							 expert: experts.BaseExpert = None):
