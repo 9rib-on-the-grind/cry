@@ -8,8 +8,22 @@ import experts
 
 
 def create_searchspace_config():
-	"""Writes json file with parameter ranges to be searched."""
+	"""Writes json file with parameters searchspace.
 
+	Structure:
+		{
+			rule: {
+				'parameters': {attribute: search_space}
+				'indicators': [
+					{
+						'name': string,
+						'parameters': {attribute: search_space}
+					}
+				]
+			}
+		}
+	"""
+	
 	def get_logspace(start, stop, num):
 		space = list(sorted(set(np.logspace(start, stop, num, dtype=int))))
 		return list(map(int, space))
@@ -22,18 +36,6 @@ def create_searchspace_config():
 	nested_dict = lambda: collections.defaultdict(nested_dict)
 	data = collections.defaultdict(nested_dict)
 
-	"""
-	Structure:
-		rule: {
-			'parameters': {atribute: search_space}
-			'indicators': [
-				{
-					'name': string,
-					'parameters': {atribute: search_space}
-				}
-			]
-		}
-	"""
 
 	# MACrossover
 	data['MovingAverageCrossoverRule']['parameters'] = {'patience': patience}
@@ -56,6 +58,30 @@ def create_searchspace_config():
 
 def serialize_expert_to_json(filename: str = 'expert.json',
 							 expert: experts.BaseExpert = None):
+	"""
+	Structure:
+		{
+			'name': string,
+			'inner experts: [serialized experts]'
+		}
+
+		OR
+
+		{
+			'name': string,
+			'rule': {
+				'name': string,
+				'parameters': {attribute: value}
+			}
+			'indicators': [
+				{
+					'name': 'string',
+					'parameters': {attribute: value}
+				}
+			]
+		}
+	"""
+
 	def get_hierarchy(expert: experts.BaseExpert):
 		state = {}
 		state['name'] = expert.name
