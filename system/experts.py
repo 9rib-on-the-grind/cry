@@ -21,6 +21,9 @@ class BaseExpert:
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
 
+    def set_data(self, data: data.DataMaintainer):
+        raise NotImplementedError()
+
     def get_parameters(self):
         raise NotImplementedError()
     
