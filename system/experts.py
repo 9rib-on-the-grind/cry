@@ -4,6 +4,7 @@ import numpy as np
 
 import indicators
 import rules
+import data
 
 
 
@@ -15,6 +16,7 @@ class BaseExpert:
         self._inner_experts = None
         self._weights = None
         self._estimated_profit = None
+        self._estimated_ntrades = None
 
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
@@ -31,10 +33,11 @@ class BaseExpert:
         for expert in self._inner_experts:
             expert.update()
 
-    def show(self, indentation=0, detailed=False):
+    def show(self, indentation=0, detailed=True):
         print(' ' * indentation + self.name)
         for expert in self._inner_experts:
             expert.show(indentation + 10, detailed=detailed)
+
 
 
 class PairExpert(BaseExpert):
@@ -49,6 +52,10 @@ class PairExpert(BaseExpert):
         super().__init__()
         self.base, self.quote = base, quote
         self.name = f'PairExpert [{base}/{quote}]'
+
+    def set_data(self, data: data.DataMaintainer):
+        for expert in self._inner_experts:
+            expert.set_data(data[expert.timeframe])
 
     def get_parameters(self):
         return {'base': self.base, 'quote': self.quote}
@@ -66,6 +73,10 @@ class TimeFrameExpert(BaseExpert):
         super().__init__()
         self.timeframe = timeframe
         self.name = f'TimeFrameExpert [{timeframe}]'
+
+    def set_data(self, data: data.DataMaintainer):
+        for expert in self._inner_experts:
+            expert.set_data(data)
 
     def get_parameters(self):
         return {'timeframe': self.timeframe}
@@ -90,6 +101,10 @@ class RuleExpert(BaseExpert):
     def set_experts(self):
         raise SystemError('Do not call this method')
 
+    def set_data(self, data: data.DataMaintainer):
+        for indicator in self._indicators:
+            indicator.set_data(data)
+
     def get_parameters(self):
         return {}
 
@@ -100,7 +115,7 @@ class RuleExpert(BaseExpert):
         for indicator in self._indicators:
             indicator.update()
 
-    def show(self, indentation, detailed):
+    def show(self, indentation=10, detailed=True):
         if detailed:
             rule_name = f'{self._rule.name}, {self._rule.get_parameters()}'
             inds_names = f'{str([(ind.name, ind.get_parameters()) for ind in self._indicators])}'
