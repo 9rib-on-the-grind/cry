@@ -12,7 +12,7 @@ class DataMaintainer:
         maxlen: Int. Maximum length of deque for columns.
     """
 
-    def __init__(self, maxlen: int = 2000):
+    def __init__(self, maxlen: int = 500):
         self._data = collections.defaultdict(DataMaintainer)
         self.maxlen = maxlen
         self.update_hash = None
@@ -85,7 +85,8 @@ class DataMaintainer:
         
         for key, maintainer in maintainers:
                 maintainer.show(f'{location}/{key}')
-        print('\n' + location)
+        if deques:
+            print('\n' + location)
         for key, _ in deques:
             print(f'{key:>19}', end='')
         print('\n' * 2)
