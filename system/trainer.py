@@ -23,7 +23,7 @@ class Trainer:
     ]
 
     def __init__(self):
-        pass
+        self.loaded_history = {}
 
     def construct_system(self):
         pair = 'BTC/USDT'
@@ -111,7 +111,7 @@ class Trainer:
 
         if display:
             self.show_trades(pair_trader, new_data)
-        return pair_trader.profit[-1], len(pair_trader.trades)
+        return pair_trader.evaluate_profit(), len(pair_trader.trades)
 
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
         def config_axs(*axs):
@@ -121,7 +121,7 @@ class Trainer:
                 ax.margins(x=.1)
 
         pair_trader.show_evaluation()
-        
+
         timeframe = pair_trader.min_timeframe
         close = new_data[timeframe][:, 4] # Close price
         time = new_data[timeframe][:, 6] # Close time
@@ -145,9 +145,10 @@ class Trainer:
         plt.show()
 
     def load_history(self, pair: str, timeframe: str) -> pd.DataFrame:
-        pair = pair.replace('/', '')
-        filename = f'data/test_data/{pair}/{timeframe}.csv'
-        return pd.read_csv(filename)
+        if (pair, timeframe) not in self.loaded_history:
+            filename = f"data/test_data/{pair.replace('/', '')}/{timeframe}.csv"
+            self.loaded_history[(pair, timeframe)] = pd.read_csv(filename)
+        return self.loaded_history[(pair, timeframe)]
 
 
 
