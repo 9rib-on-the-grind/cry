@@ -45,6 +45,7 @@ class Trainer:
             timeframe_lst.append(timeframe_expert)
 
         pair_expert.set_experts(timeframe_lst)
+        # self.set_weights(pair_expert)
         pair_expert.show()
         config.serialize_expert_to_json(expert=pair_expert)
 
@@ -69,25 +70,19 @@ class Trainer:
         pair_trader.set_expert(pair_expert)
         return pair_trader
 
-    def best_rule_experts(self, candidates: list[experts.RuleExpert], *,
-                                trashold: float = None,
-                                nbest: int = None,
-                                percent: 'float (0, 1)' = None) -> list[experts.RuleExpert]:
-        nbest = nbest if percent is None else int(percent * len(candidates))
-        candidates = [expert for expert in candidates if expert._estimated_ntrades > 5 and expert._estimated_profit > 0]
-        candidates.sort(reverse=True, key=lambda x: x._estimated_profit)
-        if trashold is not None:
-            return [expert for expert in candidates if expert._estimated_profit > trashold]
-        elif nbest is not None:
-            return candidates[:nbest]
-
     def simulate_pair_trader(self, pair_trader: trader.PairTrader, ndays: int, *, display: bool = False):
+        def load_history(pair: str, timeframe: str) -> pd.DataFrame:
+            if (pair, timeframe) not in self.loaded_history:
+                filename = f"data/test_data/{pair.replace('/', '')}/{timeframe}.csv"
+                self.loaded_history[(pair, timeframe)] = pd.read_csv(filename)
+            return self.loaded_history[(pair, timeframe)]
+
         def construct_data(pair_trader: trader.PairTrader, ndays: int):
             init_data = data.DataMaintainer()
             new_data = {}
-            start_time = self.load_history(pair_trader.pair, '1d')['Close time'].iloc[-ndays]
+            start_time = load_history(pair_trader.pair, '1d')['Close time'].iloc[-ndays]
             for timeframe in pair_trader.timeframes:
-                df = self.load_history(pair_trader.pair, timeframe)
+                df = load_history(pair_trader.pair, timeframe)
                 split = df['Close time'].searchsorted(start_time)
                 init, new = df.iloc[max(split-500, 0): split], df.iloc[split:].values
                 init_data.add(data=init.values.T, keys=list(init), location=[timeframe, 'History'])
@@ -112,6 +107,18 @@ class Trainer:
         if display:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
+
+    def best_rule_experts(self, candidates: list[experts.RuleExpert], *,
+                                trashold: float = None,
+                                nbest: int = None,
+                                percent: 'float (0, 1)' = None) -> list[experts.RuleExpert]:
+        nbest = nbest if percent is None else int(percent * len(candidates))
+        candidates = [expert for expert in candidates if expert._estimated_ntrades > 5 and expert._estimated_profit > 0]
+        candidates.sort(reverse=True, key=lambda x: x._estimated_profit)
+        if trashold is not None:
+            return [expert for expert in candidates if expert._estimated_profit > trashold]
+        elif nbest is not None:
+            return candidates[:nbest]
 
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
         def config_axs(*axs):
@@ -143,12 +150,6 @@ class Trainer:
         ax3.plot(time[:len(estimations)], estimations)
 
         plt.show()
-
-    def load_history(self, pair: str, timeframe: str) -> pd.DataFrame:
-        if (pair, timeframe) not in self.loaded_history:
-            filename = f"data/test_data/{pair.replace('/', '')}/{timeframe}.csv"
-            self.loaded_history[(pair, timeframe)] = pd.read_csv(filename)
-        return self.loaded_history[(pair, timeframe)]
 
 
 
