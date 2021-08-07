@@ -58,6 +58,7 @@ class PairTrader(BaseTrader):
             self.times.append(time)
             self.trades.append(('buy', self.quantity, price))
             self.balance = 0
+            self.profit.append(self.profit[-1] if self.profit else 0)
         elif estimation < -self.trashold and self.quantity > 0: # sell
             self.balance = (1 - self.commision) * self.quantity * price
             self.times.append(time)

@@ -27,7 +27,7 @@ class Trainer:
 
     def construct_system(self):
         pair = 'BTC/USDT'
-        timeframes = ['1d', '4h', '1h', '15m']
+        timeframes = ['1d', '4h', '1h']
         base, quote = pair.split('/')
 
         pair_expert = experts.PairExpert(base, quote)
@@ -110,9 +110,8 @@ class Trainer:
             pair_trader.act()
 
         if display:
-            pair_trader.show_evaluation()
             self.show_trades(pair_trader, new_data)
-        return pair_trader.profit[-1] if pair_trader.profit else 0, len(pair_trader.trades)
+        return pair_trader.profit[-1], len(pair_trader.trades)
 
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
         def config_axs(*axs):
@@ -121,6 +120,8 @@ class Trainer:
                 ax.set_xlim(time[0], time[-1])
                 ax.margins(x=.1)
 
+        pair_trader.show_evaluation()
+        
         timeframe = pair_trader.min_timeframe
         close = new_data[timeframe][:, 4] # Close price
         time = new_data[timeframe][:, 6] # Close time
@@ -136,7 +137,7 @@ class Trainer:
         ax1.scatter(buy_time, buy_price, color='blue')
         ax1.scatter(sell_time, sell_price, color='red')
 
-        ax2.plot(sell_time, pair_trader.profit, linestyle=':')
+        ax2.plot(pair_trader.times, pair_trader.profit, linestyle=':')
 
         estimations = pair_trader.estimations
         ax3.plot(time[:len(estimations)], estimations)
@@ -153,10 +154,10 @@ class Trainer:
 if __name__ == '__main__':
     trainer = Trainer()
 
-    trainer.construct_system()
+    # trainer.construct_system()
 
     pair_trader = trader.PairTrader('BTC/USDT')
     expert = config.deserialize_expert_from_json()
     expert.show()
     pair_trader.set_expert(expert)
-    trainer.simulate_pair_trader(pair_trader, 90, display=True)
+    trainer.simulate_pair_trader(pair_trader, 300, display=True)
