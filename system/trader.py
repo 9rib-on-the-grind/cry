@@ -77,4 +77,8 @@ class PairTrader(BaseTrader):
         print(f'profit : {self.evaluate_profit():.2f} %')
 
     def evaluate_profit(self):
-        return 100 * (self.balance - self.initial_money) / self.initial_money
+        if self.quantity:
+            balance = self.trades[-1][2] * self.quantity
+        else:
+            balance = self.balance
+        return 100 * (balance - self.initial_money) / self.initial_money
