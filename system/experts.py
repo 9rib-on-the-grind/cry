@@ -24,13 +24,34 @@ class BaseExpert:
     def set_data(self, data: data.DataMaintainer):
         raise NotImplementedError()
 
+    def init_weights(self):
+        raise NotImplementedError()
+
+    def get_weights(self) -> list['weights', list['inner weights']]:
+        inner_weights = [expert.get_weights() for expert in self._inner_experts 
+                                              if hasattr(expert, '_inner_experts')]
+        return [self._weights, inner_weights]
+
+    def set_weights(self, weights: list['weights', list['inner weights']]):
+        self._weights, inner = weights
+        for expert, weights in zip(self._inner_experts, inner):
+            expert.set_weights(weights)
+        self.normalize_weights(recursively=True)
+
+    def normalize_weights(self, recursively=False):
+        if hasattr(self, '_weights'):
+            # weights should not be divided in place because of trainer fit function
+            self._weights = self._weights / np.sum(self._weights)
+            if recursively:
+                for expert in self._inner_experts:
+                    expert.normalize_weights(recursively=True)
+
     def get_parameters(self):
         raise NotImplementedError()
     
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
-        # return estimations @ self._weights
-        return np.mean(estimations)
+        return estimations @ self._weights
     
     def update(self):
         for expert in self._inner_experts:
@@ -60,6 +81,12 @@ class PairExpert(BaseExpert):
         for expert in self._inner_experts:
             expert.set_data(data[expert.timeframe])
 
+    def init_weights(self):
+        self._weights = np.random.uniform(0, 1, size=len(self._inner_experts))
+        self.normalize_weights()
+        for expert in self._inner_experts:
+            expert.init_weights()
+
     def get_parameters(self):
         return {'base': self.base, 'quote': self.quote}
 
@@ -81,6 +108,14 @@ class TimeFrameExpert(BaseExpert):
         for expert in self._inner_experts:
             expert.set_data(data)
 
+    def init_weights(self):
+        if self._inner_experts and self._inner_experts[0]._estimated_profit is not None:
+            profit = [expert._estimated_profit for expert in self._inner_experts]
+            self._weights = np.array(profit)
+        else:
+            self._weights = np.random.uniform(0, 1, size=len(self._inner_experts))
+        self.normalize_weights()
+
     def get_parameters(self):
         return {'timeframe': self.timeframe}
 
@@ -100,6 +135,8 @@ class RuleExpert(BaseExpert):
         self._indicators = indicators
         indicator_names = [indicator.name for indicator in self._indicators]
         self.name = f'RuleExpert [{self._rule.name}, {str(indicator_names)}]'
+        del self._inner_experts
+        del self._weights
 
     def set_experts(self):
         raise SystemError('Do not call this method')
