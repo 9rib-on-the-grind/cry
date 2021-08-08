@@ -20,9 +20,10 @@ import config
 
 class Trainer:
     rule_classes = [
-        rules.MovingAverageCrossoverRule,
-        rules.RelativeStrengthIndexTrasholdRule,
-        rules.TripleExponentialDirectionChangeRule,
+        # rules.MovingAverageCrossoverRule,
+        # rules.RelativeStrengthIndexTrasholdRule,
+        # rules.TripleExponentialDirectionChangeRule,
+        rules.IchimokuKinkoHyoTenkanKijunCrossoverRule,
     ]
 
     def __init__(self):
@@ -30,8 +31,8 @@ class Trainer:
 
     def construct_system(self):
         pair = 'BTC/USDT'
-        timeframes = ['1d', '4h', '1h']
-        # timeframes = ['1h']
+        # timeframes = ['1d', '4h', '1h']
+        timeframes = ['1h']
         # timeframes = ['4h']
         # timeframes = ['4h', '1h']
         base, quote = pair.split('/')
@@ -62,8 +63,8 @@ class Trainer:
         ndays = {'1d': 300, '4h': 180, '1h': 90, '15m': 30, '1m': 2}
         for expert in experts:
             pair_trader = self.construct_pair_trader_from_rule_expert(expert, pair, timeframe)
-            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
-            # profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=360, display=True)
+            # profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
+            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=360, display=True)
             expert._estimated_profit = profit
             expert._estimated_ntrades = ntrades
 
@@ -129,7 +130,7 @@ class Trainer:
         elif nbest is not None:
             return candidates[:nbest]
 
-    def fit_weights(self, epochs=10, population=7, nchildren=3):
+    def fit_weights(self, epochs=2, population=7, nchildren=3):
         def fitness(pair_trader: trader.PairTrader) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
             return profit if ntrades >= min_trades else -999
@@ -211,7 +212,7 @@ class Trainer:
 if __name__ == '__main__':
     trainer = Trainer()
 
-    # trainer.construct_system()
+    trainer.construct_system()
 
     pair_trader = trader.PairTrader('BTC/USDT')
     expert = config.deserialize_expert_from_json()

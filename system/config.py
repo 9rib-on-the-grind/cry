@@ -39,21 +39,41 @@ def create_searchspace_config():
 	data = collections.defaultdict(nested_dict)
 
 
-	# MACrossover
-	data['MovingAverageCrossoverRule']['parameters'] = {'patience': patience}
-	data['MovingAverageCrossoverRule']['indicators'] = [
-		{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
-		{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
-	]
+	# # MACrossover
+	# data['MovingAverageCrossoverRule']['parameters'] = {'patience': patience}
+	# data['MovingAverageCrossoverRule']['indicators'] = [
+	# 	{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
+	# 	{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
+	# ]
 
-	# RSITrashold
-	data['RelativeStrengthIndexTrasholdRule']['parameters'] = {
-		'patience': patience,
-		'lower': list(range(20, 45, 10)),
-		'upper': list(range(60, 85, 10)),
-	}
-	data['RelativeStrengthIndexTrasholdRule']['indicators'] = [
-		{'name': 'RelativeStrengthIndexIndicator', 'parameters': {'length': length}}
+	# # RSITrashold
+	# data['RelativeStrengthIndexTrasholdRule']['parameters'] = {
+	# 	'patience': patience,
+	# 	'lower': list(range(20, 45, 10)),
+	# 	'upper': list(range(60, 85, 10)),
+	# }
+	# data['RelativeStrengthIndexTrasholdRule']['indicators'] = [
+	# 	{'name': 'RelativeStrengthIndexIndicator', 'parameters': {'length': length}}
+	# ]
+
+	# # TRIXDirectionChange
+	# length = list(range(4, 40, 3))
+	# patience = list(range(3, 20, 2))
+	# data['TripleExponentialDirectionChangeRule']['parameters'] = {'patience': patience}
+	# data['TripleExponentialDirectionChangeRule']['indicators'] = [
+	# 	{'name': 'TripleExponentialIndicator', 'parameters': {'length': length}},
+	# ]
+
+	# IchimokuTenkanKijunCrossover
+	short = list(range(5, 20, 2))
+	long = list(range(20, 70, 4))
+	# data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['parameters'] = {'patience': patience}
+	# data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['indicators'] = [
+	# 	{'name': 'IchimokuKinkoHyoIndicator', 'parameters': {'short': short, 'long': long}},
+	# ]
+	data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['parameters'] = {'patience': [2]}
+	data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['indicators'] = [
+		{'name': 'IchimokuKinkoHyoIndicator', 'parameters': {'short': [9], 'long': [52]}},
 	]
 
 	json.dump(data, cfg_file, indent=4)

@@ -54,6 +54,9 @@ class BaseRule:
     def decide(self):
         raise NotImplementedError()
 
+    def get_parameters(self):
+        return {'patience': self._patience}
+
 
 
 class BaseCrossoverRule(BaseRule):
@@ -92,9 +95,6 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
             return Decision.SELL
         else:
             return Decision.WAIT
-
-    def get_parameters(self):
-        return {'patience': self._patience}
 
 
 
@@ -145,5 +145,21 @@ class TripleExponentialDirectionChangeRule(BaseDirectionChangeRule):
         else:
             return Decision.WAIT
 
-    def get_parameters(self):
-        return {'patience': self._patience}
+
+
+class IchimokuKinkoHyoTenkanKijunCrossoverRule(BaseCrossoverRule):
+    name = 'IchimokuTenkanKijunCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cross = CrossoverState()
+
+    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
+        tenkan, kijun, _, _ = ichimoku.get_state()
+        buy, sell = self._cross.update(tenkan, kijun)
+        if buy == self._patience:
+            return Decision.BUY
+        elif sell == self._patience:
+            return Decision.SELL
+        else:
+            return Decision.WAIT
