@@ -25,13 +25,18 @@ def create_searchspace_config():
 			}
 		}
 	"""
-	
-	def get_logspace(start, stop, num):
+
+	def get_logspace(first, last, num):
+		start = np.log10(first)
+		stop = np.log10(last)
 		space = list(sorted(set(np.logspace(start, stop, num, dtype=int))))
 		return list(map(int, space))
 
-	length = get_logspace(.7, 2.5, 5)
-	patience = list(range(2, 8, 2))
+	length1 = get_logspace(7, 250, 70) # 61 element
+	patience1 = get_logspace(1, 50, 25) # 19 elements | 61 * 19     = 1 159
+
+	length2 = get_logspace(7, 100, 25) # 24 elements
+	patience2 = get_logspace(1, 50, 10) # 9 elements       | 24 * 24 * 9 = 5 184
 
 	cfg_file = open('searchspace.json', 'w')
 
@@ -39,41 +44,33 @@ def create_searchspace_config():
 	data = collections.defaultdict(nested_dict)
 
 
-	# # MACrossover
-	# data['MovingAverageCrossoverRule']['parameters'] = {'patience': patience}
-	# data['MovingAverageCrossoverRule']['indicators'] = [
-	# 	{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
-	# 	{'name': 'MovingAverageIndicator', 'parameters': {'length': length}},
-	# ]
+	# MACrossover
+	data['MovingAverageCrossoverRule']['parameters'] = {'patience': patience2}
+	data['MovingAverageCrossoverRule']['indicators'] = [
+		{'name': 'MovingAverageIndicator', 'parameters': {'length': length2}},
+		{'name': 'MovingAverageIndicator', 'parameters': {'length': length2}},
+	]
 
-	# # RSITrashold
-	# data['RelativeStrengthIndexTrasholdRule']['parameters'] = {
-	# 	'patience': patience,
-	# 	'lower': list(range(20, 45, 10)),
-	# 	'upper': list(range(60, 85, 10)),
-	# }
-	# data['RelativeStrengthIndexTrasholdRule']['indicators'] = [
-	# 	{'name': 'RelativeStrengthIndexIndicator', 'parameters': {'length': length}}
-	# ]
+	# RSITrashold
+	data['RelativeStrengthIndexTrasholdRule']['parameters'] = {
+		'patience': patience2,
+		'lower': list(range(20, 45, 10)),
+		'upper': list(range(60, 85, 10)),
+	}
+	data['RelativeStrengthIndexTrasholdRule']['indicators'] = [
+		{'name': 'RelativeStrengthIndexIndicator', 'parameters': {'length': length2}}
+	]
 
-	# # TRIXDirectionChange
-	# length = list(range(4, 40, 3))
-	# patience = list(range(3, 20, 2))
-	# data['TripleExponentialDirectionChangeRule']['parameters'] = {'patience': patience}
-	# data['TripleExponentialDirectionChangeRule']['indicators'] = [
-	# 	{'name': 'TripleExponentialIndicator', 'parameters': {'length': length}},
-	# ]
+	# TRIXDirectionChange
+	data['TripleExponentialDirectionChangeRule']['parameters'] = {'patience': patience1}
+	data['TripleExponentialDirectionChangeRule']['indicators'] = [
+		{'name': 'TripleExponentialIndicator', 'parameters': {'length': length1}},
+	]
 
 	# IchimokuTenkanKijunCrossover
-	short = list(range(5, 20, 2))
-	long = list(range(20, 70, 4))
-	# data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['parameters'] = {'patience': patience}
-	# data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['indicators'] = [
-	# 	{'name': 'IchimokuKinkoHyoIndicator', 'parameters': {'short': short, 'long': long}},
-	# ]
-	data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['parameters'] = {'patience': [2]}
+	data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['parameters'] = {'patience': patience2}
 	data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['indicators'] = [
-		{'name': 'IchimokuKinkoHyoIndicator', 'parameters': {'short': [9], 'long': [52]}},
+		{'name': 'IchimokuKinkoHyoIndicator', 'parameters': {'short': length2, 'long': length2}},
 	]
 
 	json.dump(data, cfg_file, indent=4)
@@ -144,6 +141,9 @@ def serialize_expert_to_json(filename: str = 'expert.json',
 						   'parameters': indicator.get_parameters()} 
 													for indicator in indicators]
 			state['parameters'] = {'rule': rule, 'indicators': indicators}
+			state['estimations'] = {'profit': expert._estimated_profit,
+									'ntrades': expert._estimated_ntrades}
+
 		else:
 			state['inner experts'] = [get_hierarchy(exp) for exp in expert._inner_experts]
 		return state
@@ -163,6 +163,9 @@ def deserialize_expert_from_json(filename: str = 'expert.json'):
 			rule = getattr(rules, rule['name'])(**rule['parameters'])
 			inds = [getattr(indicators, ind['name'])(**ind['parameters']) for ind in inds]
 			expert = experts.RuleExpert(rule, inds)
+			expert._estimated_profit = hierarchy['estimations']['profit']
+			expert._estimated_ntrades = hierarchy['estimations']['ntrades']
+
 		return expert
 
 	hierarchy = json.load(open(filename, 'r'))
