@@ -69,8 +69,10 @@ class PairTrader(BaseTrader):
     def show_evaluation(self):
         if self.quantity > 0:
             self.balance = self.trades[-1][2] * self.quantity
+            self.quantity = 0
             self.trades.pop()
             self.times.pop()
+            self.profit.pop()
         print(f'{len(self.trades)} trades made')
         print(f'profit : {self.evaluate_profit():.2f} %')
 
