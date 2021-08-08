@@ -4,14 +4,6 @@ import data
 
 
 class BaseIndicator:
-    """Base Indicator Class
-    
-    Args:
-        _data: DataMaintainer. If needed [_data] object will suply the indicator
-            with necessary information, must have [self.name] key.
-        _min_history: Int. Minimum number of candlestick required for state maintenance # ????????????
-    """
-
     name = 'Base Indicator'
 
     def __init__(self):
