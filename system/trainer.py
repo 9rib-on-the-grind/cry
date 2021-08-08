@@ -3,9 +3,11 @@ from itertools import product, accumulate
 from copy import deepcopy
 import time
 import heapq
+from pprint import pprint
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 import rules
 import indicators
@@ -27,7 +29,9 @@ class Trainer:
 
     def construct_system(self):
         pair = 'BTC/USDT'
-        timeframes = ['1d', '4h', '1h']
+        timeframes = ['1d', '4h']
+        # timeframes = ['1d']
+        # timeframes = ['4h']
         base, quote = pair.split('/')
 
         pair_expert = experts.PairExpert(base, quote)
@@ -38,14 +42,14 @@ class Trainer:
             candidates = [expert for rule_cls in self.rule_classes 
                                  for expert in config.get_experts_from_searchspace(rule_cls)]
             self.estimate_experts(candidates, pair, timeframe)
-            best = self.best_rule_experts(candidates, trashold=0)
+            best = self.best_rule_experts(candidates, nbest=5)
             
             timeframe_expert = experts.TimeFrameExpert(timeframe)
             timeframe_expert.set_experts(best)
             timeframe_lst.append(timeframe_expert)
 
         pair_expert.set_experts(timeframe_lst)
-        # self.set_weights(pair_expert)
+        # pair_expert.init_weights()
         pair_expert.show()
         config.serialize_expert_to_json(expert=pair_expert)
 
@@ -67,6 +71,7 @@ class Trainer:
         timeframe_expert = experts.TimeFrameExpert(timeframe)
         timeframe_expert.set_experts([rule_expert])
         pair_expert.set_experts([timeframe_expert])
+        pair_expert.init_weights()
         pair_trader.set_expert(pair_expert)
         return pair_trader
 
@@ -120,6 +125,52 @@ class Trainer:
         elif nbest is not None:
             return candidates[:nbest]
 
+    def fit_weights(self, epochs=20, population=7, nchildren=3):
+        def fitness(pair_trader: trader.PairTrader) -> float:
+            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
+            return profit if ntrades >= min_trades else -999
+
+        def construct_pair_traider_from_weights(weights: list['weights', list['inner weights']]) -> trader.PairTrader:
+            pair_trader = trader.PairTrader('BTC/USDT')
+            expert = config.deserialize_expert_from_json()
+            expert.set_weights(weights)
+            pair_trader.set_expert(expert)
+            return pair_trader
+
+        def change_weights(weights: list['weights', list['inner weights']]):
+            if not weights:
+                return weights
+            weights, inner = weights
+            sigma = lr * np.exp(-decay * epoch)
+            return [weights + np.random.normal(size=weights.shape, scale=sigma), 
+                    [change_weights(weights) for weights in inner]]
+
+        lr, decay = 1, .01
+        min_trades = 10
+        pair_trader.expert.show()
+        parents = [pair_trader.expert.get_weights()]
+
+        for epoch in range(epochs):
+            print(f'[ {epoch+1:>3} / {epochs:<3} ]')
+            children = []
+            for weights in parents:
+                children += [change_weights(weights) for _ in range(nchildren)]
+            parents += children
+            traders = [construct_pair_traider_from_weights(weights) for weights in parents]
+            traders.sort(reverse=True, key=fitness)
+            parents = [trader.expert.get_weights() for trader in traders][:population]
+
+            best_trader = traders[0]
+            best_trader.show_evaluation()
+
+        pprint(best_trader.expert.get_weights())
+
+        found_trader = trader.PairTrader('BTC/USDT')
+        expert = config.deserialize_expert_from_json()
+        expert.set_weights(best_trader.expert.get_weights())
+        found_trader.set_expert(expert)
+        self.simulate_pair_trader(found_trader, ndays=300, display=True)
+
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
         def config_axs(*axs):
             for ax in axs:
@@ -156,10 +207,11 @@ class Trainer:
 if __name__ == '__main__':
     trainer = Trainer()
 
-    # trainer.construct_system()
+    trainer.construct_system()
 
     pair_trader = trader.PairTrader('BTC/USDT')
     expert = config.deserialize_expert_from_json()
-    expert.show()
+    expert.init_weights()
     pair_trader.set_expert(expert)
-    trainer.simulate_pair_trader(pair_trader, 300, display=True)
+
+    trainer.fit_weights()
