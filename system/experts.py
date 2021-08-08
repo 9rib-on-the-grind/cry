@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 import numpy as np
+from scipy.special import softmax
 
 import indicators
 import rules
@@ -24,27 +25,24 @@ class BaseExpert:
     def set_data(self, data: data.DataMaintainer):
         raise NotImplementedError()
 
-    def init_weights(self):
-        raise NotImplementedError()
-
     def get_weights(self) -> list['weights', list['inner weights']]:
         inner_weights = [expert.get_weights() for expert in self._inner_experts 
                                               if hasattr(expert, '_inner_experts')]
-        return [self._weights, inner_weights]
+        return [self._original_weights, inner_weights]
 
-    def set_weights(self, weights: list['weights', list['inner weights']]):
-        self._weights, inner = weights
-        for expert, weights in zip(self._inner_experts, inner):
-            expert.set_weights(weights)
-        self.normalize_weights(recursively=True)
+    def set_weights(self, weights: list['weights', list['inner weights']] = None):
+        if hasattr(self, '_inner_experts'):
+            if weights is not None:
+                self._weights, inner = weights
+            else:
+                self._weights = np.random.normal(size=len(self._inner_experts))
+                inner = [None] * len(self._inner_experts)
+            for expert, weights in zip(self._inner_experts, inner):
+                expert.set_weights(weights)
+            self.normalize_weights()
 
-    def normalize_weights(self, recursively=False):
-        if hasattr(self, '_weights'):
-            # weights should not be divided in place because of trainer fit function
-            self._weights = self._weights / np.sum(self._weights)
-            if recursively:
-                for expert in self._inner_experts:
-                    expert.normalize_weights(recursively=True)
+    def normalize_weights(self):
+        self._original_weights, self.weights = self._weights, softmax(self._weights)
 
     def get_parameters(self):
         raise NotImplementedError()
@@ -81,12 +79,6 @@ class PairExpert(BaseExpert):
         for expert in self._inner_experts:
             expert.set_data(data[expert.timeframe])
 
-    def init_weights(self):
-        self._weights = np.random.uniform(0, 1, size=len(self._inner_experts))
-        self.normalize_weights()
-        for expert in self._inner_experts:
-            expert.init_weights()
-
     def get_parameters(self):
         return {'base': self.base, 'quote': self.quote}
 
@@ -107,14 +99,6 @@ class TimeFrameExpert(BaseExpert):
     def set_data(self, data: data.DataMaintainer):
         for expert in self._inner_experts:
             expert.set_data(data)
-
-    def init_weights(self):
-        if self._inner_experts and self._inner_experts[0]._estimated_profit is not None:
-            profit = [expert._estimated_profit for expert in self._inner_experts]
-            self._weights = np.array(profit)
-        else:
-            self._weights = np.random.uniform(0, 1, size=len(self._inner_experts))
-        self.normalize_weights()
 
     def get_parameters(self):
         return {'timeframe': self.timeframe}
