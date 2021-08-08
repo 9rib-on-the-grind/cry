@@ -46,3 +46,50 @@ class TripleExponentialAverage(BaseRollingWindow):
             ema.append(val)
             val = ema.get_state()
         self._state = val
+
+
+
+class Min(BaseRollingWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._queue.append((-self.length, None))
+        self.time = 0
+
+    def append(self, val: float):
+        if not val:
+            raise SystemError()
+        if self._queue[0][0] == self.time - self.length:
+            self._queue.popleft()
+        while self._queue and self._queue[-1][1] >= val:
+            self._queue.pop()
+        self._queue.append((self.time, val))
+        self._state = self._queue[0][1]
+        self.time += 1
+
+
+
+class Max(BaseRollingWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._queue.append((-self.length, None))
+        self.time = 0
+
+    def append(self, val: float):
+        if self._queue[0][0] == self.time - self.length:
+            self._queue.popleft()
+        while self._queue and self._queue[-1][1] <= val:
+            self._queue.pop()
+        self._queue.append((self.time, val))
+        self._state = self._queue[0][1]
+        self.time += 1
+
+
+
+class Shift(BaseRollingWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._queue.append(0)
+
+    def append(self, val: float):
+        self._state = self._queue[0]
+        self._queue.append(val)
