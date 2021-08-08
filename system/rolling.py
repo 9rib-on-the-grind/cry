@@ -26,9 +26,23 @@ class SimpleMovingAverage(BaseRollingWindow):
 
 
 class ExponentialMovingAverage(BaseRollingWindow):
-    def __init__(self, alpha: float, **kwargs):
+    def __init__(self, alpha: float = None, span: float = None, **kwargs):
         super().__init__(**kwargs)
-        self._alpha = alpha
+        self._alpha = alpha or 2 / (span + 1)
 
     def append(self, val: float):
         self._state = (1 - self._alpha) * self._state + self._alpha * val
+
+
+
+class TripleExponentialMovingAverage(BaseRollingWindow):
+    def __init__(self, alpha: float = None, span: float = None, **kwargs):
+        super().__init__(**kwargs)
+        self._alpha = alpha or 2 / (span + 1)
+        self._emas = [ExponentialMovingAverage(self._alpha) for _ in range(3)]
+
+    def append(self, val: float):
+        for ema in self._emas:
+            ema.append(val)
+            val = ema.get_state()
+        self._state = val

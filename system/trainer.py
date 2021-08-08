@@ -22,6 +22,7 @@ class Trainer:
     rule_classes = [
         rules.MovingAverageCrossoverRule,
         rules.RelativeStrengthIndexTrasholdRule,
+        rules.TripleExponentialDirectionChangeRule,
     ]
 
     def __init__(self):
@@ -29,9 +30,10 @@ class Trainer:
 
     def construct_system(self):
         pair = 'BTC/USDT'
-        timeframes = ['1d', '4h']
-        # timeframes = ['1d']
+        timeframes = ['1d', '4h', '1h']
+        # timeframes = ['1h']
         # timeframes = ['4h']
+        # timeframes = ['4h', '1h']
         base, quote = pair.split('/')
 
         pair_expert = experts.PairExpert(base, quote)
@@ -42,14 +44,15 @@ class Trainer:
             candidates = [expert for rule_cls in self.rule_classes 
                                  for expert in config.get_experts_from_searchspace(rule_cls)]
             self.estimate_experts(candidates, pair, timeframe)
-            best = self.best_rule_experts(candidates, nbest=5)
+            # best = self.best_rule_experts(candidates, nbest=5)
+            best = self.best_rule_experts(candidates, trashold=10)
             
             timeframe_expert = experts.TimeFrameExpert(timeframe)
             timeframe_expert.set_experts(best)
             timeframe_lst.append(timeframe_expert)
 
         pair_expert.set_experts(timeframe_lst)
-        # pair_expert.init_weights()
+        # pair_expert.set_weights()
         pair_expert.show()
         config.serialize_expert_to_json(expert=pair_expert)
 
@@ -60,6 +63,7 @@ class Trainer:
         for expert in experts:
             pair_trader = self.construct_pair_trader_from_rule_expert(expert, pair, timeframe)
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
+            # profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=360, display=True)
             expert._estimated_profit = profit
             expert._estimated_ntrades = ntrades
 
@@ -71,7 +75,7 @@ class Trainer:
         timeframe_expert = experts.TimeFrameExpert(timeframe)
         timeframe_expert.set_experts([rule_expert])
         pair_expert.set_experts([timeframe_expert])
-        pair_expert.init_weights()
+        pair_expert.set_weights()
         pair_trader.set_expert(pair_expert)
         return pair_trader
 
@@ -125,7 +129,7 @@ class Trainer:
         elif nbest is not None:
             return candidates[:nbest]
 
-    def fit_weights(self, epochs=20, population=7, nchildren=3):
+    def fit_weights(self, epochs=10, population=7, nchildren=3):
         def fitness(pair_trader: trader.PairTrader) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
             return profit if ntrades >= min_trades else -999
@@ -142,7 +146,7 @@ class Trainer:
                 return weights
             weights, inner = weights
             sigma = lr * np.exp(-decay * epoch)
-            return [weights + np.random.normal(size=weights.shape, scale=sigma), 
+            return [weights + np.random.normal(size=weights.shape, scale=1), 
                     [change_weights(weights) for weights in inner]]
 
         lr, decay = 1, .01
@@ -207,11 +211,11 @@ class Trainer:
 if __name__ == '__main__':
     trainer = Trainer()
 
-    trainer.construct_system()
+    # trainer.construct_system()
 
     pair_trader = trader.PairTrader('BTC/USDT')
     expert = config.deserialize_expert_from_json()
-    expert.init_weights()
+    expert.set_weights()
     pair_trader.set_expert(expert)
 
     trainer.fit_weights()
