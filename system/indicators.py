@@ -40,7 +40,7 @@ class MovingAverageIndicator(BaseIndicator):
         self.source_name = source
 
     def init_state(self):
-        self._sma = rolling.SimpleMovingAverage(length=self.length)
+        self._sma = rolling.Average(length=self.length)
         for val in self._source:
             self.update(val)
 
@@ -69,8 +69,8 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         self.source_name = source
 
     def init_state(self):
-        self._up_smma = rolling.ExponentialMovingAverage(alpha=1/self.length)
-        self._down_smma = rolling.ExponentialMovingAverage(alpha=1/self.length)
+        self._up_smma = rolling.ExponentialAverage(alpha=1/self.length)
+        self._down_smma = rolling.ExponentialAverage(alpha=1/self.length)
         self._prev = 0
         for val in self._source:
             self.update(val)
@@ -107,8 +107,8 @@ class TripleExponentialIndicator(BaseIndicator):
         self.source_name = source
 
     def init_state(self):
-        self._tma = rolling.TripleExponentialMovingAverage(span=self.length)
-        self._signal_line = rolling.SimpleMovingAverage(length=self.length)
+        self._tma = rolling.TripleExponentialAverage(span=self.length)
+        self._signal_line = rolling.Average(length=self.length)
         self._prev = 1
         for val in self._source:
             self.update(val)

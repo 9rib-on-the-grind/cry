@@ -13,7 +13,7 @@ class BaseRollingWindow:
 
 
 
-class SimpleMovingAverage(BaseRollingWindow):
+class Average(BaseRollingWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -25,7 +25,7 @@ class SimpleMovingAverage(BaseRollingWindow):
 
 
 
-class ExponentialMovingAverage(BaseRollingWindow):
+class ExponentialAverage(BaseRollingWindow):
     def __init__(self, alpha: float = None, span: float = None, **kwargs):
         super().__init__(**kwargs)
         self._alpha = alpha or 2 / (span + 1)
@@ -35,11 +35,11 @@ class ExponentialMovingAverage(BaseRollingWindow):
 
 
 
-class TripleExponentialMovingAverage(BaseRollingWindow):
+class TripleExponentialAverage(BaseRollingWindow):
     def __init__(self, alpha: float = None, span: float = None, **kwargs):
         super().__init__(**kwargs)
         self._alpha = alpha or 2 / (span + 1)
-        self._emas = [ExponentialMovingAverage(self._alpha) for _ in range(3)]
+        self._emas = [ExponentialAverage(self._alpha) for _ in range(3)]
 
     def append(self, val: float):
         for ema in self._emas:
