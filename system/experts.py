@@ -42,7 +42,7 @@ class BaseExpert:
             self.normalize_weights()
 
     def normalize_weights(self):
-        self._original_weights, self.weights = self._weights, softmax(self._weights)
+        self._original_weights, self._weights = self._weights, softmax(self._weights)
 
     def get_parameters(self):
         raise NotImplementedError()
