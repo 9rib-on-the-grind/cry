@@ -149,8 +149,8 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.max_mid = rolling.Max(length=self.mid)
         self.min_long = rolling.Min(length=self.long)
         self.max_long = rolling.Max(length=self.long)
-        self.senkouA = rolling.Shift(length=self.mid)
-        self.senkouB = rolling.Shift(length=self.mid)
+        self.senkouA = rolling.Lag(length=self.mid)
+        self.senkouB = rolling.Lag(length=self.mid)
         for low, high in zip(self._low, self._high):
             self.update(low, high)
 

@@ -20,8 +20,8 @@ class Average(BaseRollingWindow):
     def append(self, val: float):
         if len(self._queue) >= self.length:
             self._state -= self._queue.popleft() / self.length
-        self._state += val / self.length
         self._queue.append(val)
+        self._state += val / self.length
 
 
 
@@ -39,12 +39,12 @@ class TripleExponentialAverage(BaseRollingWindow):
     def __init__(self, alpha: float = None, span: float = None, **kwargs):
         super().__init__(**kwargs)
         self._alpha = alpha or 2 / (span + 1)
-        self._emas = [ExponentialAverage(self._alpha) for _ in range(3)]
+        self._exp_avg = [ExponentialAverage(self._alpha) for _ in range(3)]
 
     def append(self, val: float):
-        for ema in self._emas:
-            ema.append(val)
-            val = ema.get_state()
+        for avg in self._exp_avg:
+            avg.append(val)
+            val = avg.get_state()
         self._state = val
 
 
@@ -85,7 +85,7 @@ class Max(BaseRollingWindow):
 
 
 
-class Shift(BaseRollingWindow):
+class Lag(BaseRollingWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._queue.append(0)
