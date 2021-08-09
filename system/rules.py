@@ -57,6 +57,16 @@ class BaseRule:
     def get_parameters(self):
         return {'patience': self._patience}
 
+    def signal(self, buy: int, sell: int, instant: bool = True):
+        condition = lambda x: x == self._patience if instant else lambda x: x >= self._patience
+        if condition(buy):
+            return Decision.BUY
+        elif condition(sell):
+            return Decision.SELL
+        else:
+            return Decision.WAIT
+
+
 
 
 class BaseCrossoverRule(BaseRule):
@@ -89,12 +99,7 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
     def decide(self, slow: indicators.MovingAverageIndicator, 
                      fast: indicators.MovingAverageIndicator):
         buy, sell = self._cross.update(fast.get_state(), slow.get_state())
-        if buy == self._patience:
-            return Decision.BUY
-        elif sell == self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        return self.signal(buy, sell)
 
 
 
@@ -113,12 +118,7 @@ class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
         val = rsi.get_state()
         buy, _ = self._lower_cross.update(self._lower, val)
         sell, _ = self._upper_cross.update(val, self._upper)
-        if buy >= self._patience:
-            return Decision.BUY
-        elif sell >= self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        return self.signal(buy, sell, instant=False)
 
     def get_parameters(self):
         return {'lower': self._lower, 
@@ -138,12 +138,8 @@ class TripleExponentialDirectionChangeRule(BaseDirectionChangeRule):
     def decide(self, trix: indicators.TripleExponentialIndicator):
         inc, length = self._dir.update(trix.get_state() - self._prev)
         self._prev = trix.get_state()
-        if inc and length == self._patience:
-            return Decision.BUY
-        elif not inc and length == self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        buy, sell = (length, 0) if inc else (0, length)
+        return self.signal(buy, sell)
 
 
 
@@ -157,12 +153,7 @@ class IchimokuKinkoHyoTenkanKijunCrossoverRule(BaseCrossoverRule):
     def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
         tenkan, kijun, _, _ = ichimoku.get_state()
         buy, sell = self._cross.update(tenkan, kijun)
-        if buy == self._patience:
-            return Decision.BUY
-        elif sell == self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        return self.signal(buy, sell)
 
 
 
@@ -180,12 +171,7 @@ class BollingerBandsLowerUpperCrossoverRule(BaseCrossoverRule):
         val = ma.get_state()
         buy, _ = self._lower_cross.update(lower, val)
         sell, _ = self._upper_cross.update(val, upper)
-        if buy >= self._patience:
-            return Decision.BUY
-        elif sell >= self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        return self.signal(buy, sell, instant=False)
 
 
 
@@ -203,12 +189,7 @@ class BollingerBandsLowerMidCrossoverRule(BaseCrossoverRule):
         val = ma.get_state()
         buy, _ = self._lower_cross.update(lower, val)
         sell, _ = self._mid_cross.update(val, mid)
-        if buy == self._patience:
-            return Decision.BUY
-        elif sell == self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        return self.signal(buy, sell)
 
 
 
@@ -226,9 +207,4 @@ class BollingerBandsUpperMidCrossoverRule(BaseCrossoverRule):
         val = ma.get_state()
         buy, _ = self._upper_cross.update(val, upper)
         sell, _ = self._mid_cross.update(mid, val)
-        if buy == self._patience:
-            return Decision.BUY
-        elif sell == self._patience:
-            return Decision.SELL
-        else:
-            return Decision.WAIT
+        return self.signal(buy, sell)
