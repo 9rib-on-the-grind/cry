@@ -25,7 +25,8 @@ class PairTrader(BaseTrader):
         self.trashold = .2
         self.estimations = []
         self.trades = []
-        self.profit = []
+        self._profits = []
+        self.profit = None
         self.time, self.times = 0, []
         self.commision = .00075
 
@@ -58,12 +59,12 @@ class PairTrader(BaseTrader):
             self.times.append(time)
             self.trades.append(('buy', self.quantity, price))
             self.balance = 0
-            self.profit.append(self.profit[-1] if self.profit else 0)
+            self._profits.append(self._profits[-1] if self._profits else 0)
         elif estimation < -self.trashold and self.quantity > 0: # sell
             self.balance = (1 - self.commision) * self.quantity * price
             self.times.append(time)
             self.trades.append(('sell', self.quantity, price))
-            self.profit.append(self.evaluate_profit())
+            self._profits.append(self.evaluate_profit())
             self.quantity = 0
 
     def show_evaluation(self):
@@ -72,7 +73,7 @@ class PairTrader(BaseTrader):
             self.quantity = 0
             self.trades.pop()
             self.times.pop()
-            self.profit.pop()
+            self._profits.pop()
         print(f'{len(self.trades)} trades made')
         print(f'profit : {self.evaluate_profit():.2f} %')
 
