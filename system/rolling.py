@@ -93,3 +93,40 @@ class Lag(BaseRollingWindow):
     def append(self, val: float):
         self._state = self._queue[0]
         self._queue.append(val)
+
+
+
+class Sum(BaseRollingWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def append(self, val: float):
+        if len(self._queue) >= self.length:
+            self._state -= self._queue.popleft()
+        self._queue.append(val)
+        self._state += val
+
+
+
+class Variance(BaseRollingWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._sum = Sum(length=self.length)
+        self._sq_sum = Sum(length=self.length)
+
+    def append(self, val: float):
+        self._sum.append(val)
+        self._sq_sum.append(val ** 2)
+        s, sq, n = self._sum.get_state(), self._sq_sum.get_state(), self.length
+        self._state = (sq / n - (s / n) ** 2) * n / (n - 1)
+
+
+
+class StandardDeviation(BaseRollingWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._var = Variance(length=self.length)
+
+    def append(self, val: float):
+        self._var.append(val)
+        self._state = self._var.get_state() ** .5
