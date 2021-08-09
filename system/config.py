@@ -75,11 +75,13 @@ def create_searchspace_config():
 
 	# BBCrossover
 
-	for name in ['BollingerBandsLowerMidCrossoverRule', 'BollingerBandsUpperMidCrossoverRule']:
+	for name in ['BollingerBandsLowerMidCrossoverRule',
+				 'BollingerBandsUpperMidCrossoverRule',
+				 'BollingerBandsLowerUpperCrossoverRule']:
 		data[name]['parameters'] = {'patience': patience2}
 		data[name]['indicators'] = [
 		{'name': 'BollingerBandsIndicator', 'parameters': {'length': length1, 
-														   'mult': get_logspace(2, 3.5, 10, float)}},
+														   'mult': get_logspace(1, 3, 10, float)}},
 		{'name': 'MovingAverageIndicator', 'parameters': {'length': [1]}},
 	]
 
