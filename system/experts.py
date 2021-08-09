@@ -152,12 +152,12 @@ class RuleExpert(BaseExpert):
         for indicator in self._indicators:
             indicator.update()
 
-    def show(self, indentation=10, detailed=True):
-        if detailed:
+    def show(self, indentation=10, overview=True):
+        if overview:
+            name = self.name
+        else:
             rule_name = f'{self._rule.name}, {self._rule.get_parameters()}'
             inds_names = f'{str([(ind.name, ind.get_parameters()) for ind in self._indicators])}'
             profit = f'{self._estimated_profit:.2f} %' if self._estimated_profit is not None else 'unknown'
             name = f'{rule_name:<80} {inds_names:<100} {profit}'
-        else:
-            name = self.name
         print(' ' * indentation + name)
