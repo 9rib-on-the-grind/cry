@@ -108,23 +108,23 @@ class TripleExponentialIndicator(BaseIndicator):
         self.source_name = source
 
     def init_state(self):
-        self._tma = rolling.TripleExponentialAverage(span=self.length)
+        self._tema = rolling.TripleExponentialAverage(span=self.length)
         self._signal_line = rolling.Average(length=self.length)
         self._prev = 1
         for val in self._source:
             self.update(val)
 
     def get_state(self):
-        return 100 * 100 * (self._tma.get_state() - self._prev) / self._prev
+        return 100 * 100 * (self._tema.get_state() - self._prev) / self._prev
             
     def update(self, val: float = None):
         initialization = (val is not None)
         val = val if initialization else self._source[-1]
         if not self.is_updated() or initialization:
             self.update_hash = self._history.update_hash
-            self._prev = self._tma.get_state()
-            self._tma.append(val)
-            self._signal_line.append(self._tma.get_state())
+            self._prev = self._tema.get_state()
+            self._tema.append(val)
+            self._signal_line.append(self._tema.get_state())
 
     def get_parameters(self):
         return {'length': self.length, 'source': self.source_name}
@@ -174,3 +174,36 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
 
     def get_parameters(self):
         return {'short': self.short, 'long': self.long}
+
+
+
+class BollingerBandsIndicator(BaseIndicator):
+    name = 'BB'
+
+    def __init__(self, length: int, mult: float, source: str = 'Close', **kwargs):
+        super().__init__(**kwargs)
+
+        self.length = length
+        self.mult = mult
+        self.source_name = source
+
+    def init_state(self):
+        self._sma = rolling.Average(length=self.length)
+        self._mstd = rolling.StandardDeviation(length=self.length)
+        for val in self._source:
+            self.update(val)
+
+    def get_state(self):
+        median, std = self._sma.get_state(), self._mstd.get_state()
+        return median, median - self.mult*std, median + self.mult*std
+
+    def update(self, val: float = None):
+        initialization = (val is not None)
+        val = val if initialization else self._source[-1]
+        if not self.is_updated() or initialization:
+            self.update_hash = self._history.update_hash
+            self._sma.append(val)
+            self._mstd.append(val)
+
+    def get_parameters(self):
+        return {'length': self.length, 'mult': self.mult}
