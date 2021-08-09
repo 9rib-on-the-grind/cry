@@ -1,3 +1,4 @@
+import collections
 from collections.abc import Sequence
 
 import numpy as np
@@ -55,10 +56,13 @@ class BaseExpert:
         for expert in self._inner_experts:
             expert.update()
 
-    def show(self, indentation=0, detailed=True):
+    def show(self, indentation=0, overview=True):
         print(' ' * indentation + self.name)
-        for expert in self._inner_experts:
-            expert.show(indentation + 10, detailed=detailed)
+        if overview and hasattr(self, 'summary'):
+            self.summary(indentation + 10)
+        else:
+            for expert in self._inner_experts:
+                expert.show(indentation + 10, overview=overview)
 
 
 
@@ -102,6 +106,15 @@ class TimeFrameExpert(BaseExpert):
 
     def get_parameters(self):
         return {'timeframe': self.timeframe}
+
+    def summary(self, indentation):
+        count = collections.defaultdict(int)
+        count['Total'] = len(self._inner_experts)
+        for expert in self._inner_experts:
+            count[expert.name] += 1
+        for name, count in count.items():
+            print(f'{" " * indentation}{count:>3} {name}')
+
 
 
 

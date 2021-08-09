@@ -4,6 +4,7 @@ from copy import deepcopy
 import time
 import heapq
 from pprint import pprint
+import multiprocessing as mp
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -33,8 +34,8 @@ class Trainer:
         # timeframes = ['1d', '4h', '1h']
         timeframes = ['1h']
 
-        reestimate = False
         reestimate = True
+        reestimate = False
 
         if reestimate:
             pair = 'BTC/USDT'
@@ -58,8 +59,6 @@ class Trainer:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
         self.trim_bad_experts(pair_expert, trashold=.1)
-        pair_expert.show()
-
         config.serialize_expert_to_json(expert=pair_expert)
 
     def estimate_experts(self, experts: list[experts.RuleExpert],
@@ -144,9 +143,9 @@ class Trainer:
             return candidates[:nbest]
 
     def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=7, nchildren=3):
-        def fitness(pair_trader: trader.PairTrader) -> float:
+        def estimate_trader(pair_trader: trader.PairTrader) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
-            return profit if ntrades >= min_trades else -999
+            pair_trader.profit = profit if ntrades >= min_trades else -999
 
         def construct_pair_traider_from_weights(weights: list['weights', list['inner weights']]) -> trader.PairTrader:
             pair_trader = trader.PairTrader('BTC/USDT')
@@ -165,7 +164,6 @@ class Trainer:
 
         lr, decay = 1, .01
         min_trades = 10
-        pair_trader.expert.show()
         parents = [pair_trader.expert.get_weights()]
 
         for epoch in range(epochs):
@@ -175,7 +173,11 @@ class Trainer:
                 children += [change_weights(weights) for _ in range(nchildren)]
             parents += children
             traders = [construct_pair_traider_from_weights(weights) for weights in parents]
-            traders.sort(reverse=True, key=fitness)
+            # with mp.Pool() as p:
+            #     p.map(estimate_trader, traders)
+            for pair_trader in traders:
+                estimate_trader(pair_trader)
+            traders.sort(reverse=True, key=lambda x: x.profit)
             parents = [trader.expert.get_weights() for trader in traders][:population]
 
             best_trader = traders[0]
@@ -229,6 +231,7 @@ if __name__ == '__main__':
 
     pair_trader = trader.PairTrader('BTC/USDT')
     expert = config.deserialize_expert_from_json()
+    expert.show()
     expert.set_weights()
     pair_trader.set_expert(expert)
 
