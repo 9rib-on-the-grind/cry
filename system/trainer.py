@@ -25,6 +25,9 @@ class Trainer:
         rules.RelativeStrengthIndexTrasholdRule,
         rules.TripleExponentialDirectionChangeRule,
         rules.IchimokuKinkoHyoTenkanKijunCrossoverRule,
+        rules.BollingerBandsLowerUpperCrossoverRule,
+        rules.BollingerBandsLowerMidCrossoverRule,
+        rules.BollingerBandsUpperMidCrossoverRule,
     ]
 
     def __init__(self):
@@ -34,8 +37,8 @@ class Trainer:
         # timeframes = ['1d', '4h', '1h']
         timeframes = ['1h']
 
-        reestimate = True
         reestimate = False
+        reestimate = True
 
         if reestimate:
             pair = 'BTC/USDT'
@@ -58,7 +61,7 @@ class Trainer:
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        self.trim_bad_experts(pair_expert, trashold=.1)
+        # self.trim_bad_experts(pair_expert, trashold=.1)
         config.serialize_expert_to_json(expert=pair_expert)
 
     def estimate_experts(self, experts: list[experts.RuleExpert],
@@ -215,7 +218,7 @@ class Trainer:
         ax1.scatter(buy_time, buy_price, color='blue')
         ax1.scatter(sell_time, sell_price, color='red')
 
-        ax2.plot(pair_trader.times, pair_trader.profit, linestyle=':')
+        ax2.plot(pair_trader.times, pair_trader._profits, linestyle=':')
 
         estimations = pair_trader.estimations
         ax3.plot(time[:len(estimations)], estimations)

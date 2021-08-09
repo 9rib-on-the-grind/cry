@@ -26,11 +26,11 @@ def create_searchspace_config():
 		}
 	"""
 
-	def get_logspace(first, last, num):
+	def get_logspace(first, last, num, dtype=int):
 		start = np.log10(first)
 		stop = np.log10(last)
-		space = list(sorted(set(np.logspace(start, stop, num, dtype=int))))
-		return list(map(int, space))
+		space = list(sorted(set(np.logspace(start, stop, num, dtype=dtype))))
+		return list(map(dtype, space))
 
 	length1 = get_logspace(7, 250, 70) # 61 element
 	patience1 = get_logspace(1, 50, 25) # 19 elements | 61 * 19     = 1 159
@@ -72,6 +72,18 @@ def create_searchspace_config():
 	data['IchimokuKinkoHyoTenkanKijunCrossoverRule']['indicators'] = [
 		{'name': 'IchimokuKinkoHyoIndicator', 'parameters': {'short': length2, 'long': length2}},
 	]
+
+	# BBCrossover
+
+	for name in ['BollingerBandsLowerMidCrossoverRule', 'BollingerBandsUpperMidCrossoverRule']:
+		data[name]['parameters'] = {'patience': patience2}
+		data[name]['indicators'] = [
+		{'name': 'BollingerBandsIndicator', 'parameters': {'length': length1, 
+														   'mult': get_logspace(2, 3.5, 10, float)}},
+		{'name': 'MovingAverageIndicator', 'parameters': {'length': [1]}},
+	]
+
+
 
 	json.dump(data, cfg_file, indent=4)
 

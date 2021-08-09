@@ -163,3 +163,72 @@ class IchimokuKinkoHyoTenkanKijunCrossoverRule(BaseCrossoverRule):
             return Decision.SELL
         else:
             return Decision.WAIT
+
+
+
+class BollingerBandsLowerUpperCrossoverRule(BaseCrossoverRule):
+    name = 'BBLowerUpperCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._lower_cross = CrossoverState()
+        self._upper_cross = CrossoverState()
+
+    def decide(self, bb: indicators.BollingerBandsIndicator,
+                     ma: indicators.MovingAverageIndicator):
+        mid, lower, upper = bb.get_state()
+        val = ma.get_state()
+        buy, _ = self._lower_cross.update(lower, val)
+        sell, _ = self._upper_cross.update(val, upper)
+        if buy >= self._patience:
+            return Decision.BUY
+        elif sell >= self._patience:
+            return Decision.SELL
+        else:
+            return Decision.WAIT
+
+
+
+class BollingerBandsLowerMidCrossoverRule(BaseCrossoverRule):
+    name = 'BBLowerMidCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._lower_cross = CrossoverState()
+        self._mid_cross = CrossoverState()
+
+    def decide(self, bb: indicators.BollingerBandsIndicator,
+                     ma: indicators.MovingAverageIndicator):
+        mid, lower, upper = bb.get_state()
+        val = ma.get_state()
+        buy, _ = self._lower_cross.update(lower, val)
+        sell, _ = self._mid_cross.update(val, mid)
+        if buy == self._patience:
+            return Decision.BUY
+        elif sell == self._patience:
+            return Decision.SELL
+        else:
+            return Decision.WAIT
+
+
+
+class BollingerBandsUpperMidCrossoverRule(BaseCrossoverRule):
+    name = 'BBUpperMidCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._upper_cross = CrossoverState()
+        self._mid_cross = CrossoverState()
+
+    def decide(self, bb: indicators.BollingerBandsIndicator,
+                     ma: indicators.MovingAverageIndicator):
+        mid, lower, upper = bb.get_state()
+        val = ma.get_state()
+        buy, _ = self._upper_cross.update(val, upper)
+        sell, _ = self._mid_cross.update(mid, val)
+        if buy == self._patience:
+            return Decision.BUY
+        elif sell == self._patience:
+            return Decision.SELL
+        else:
+            return Decision.WAIT
