@@ -118,7 +118,7 @@ class Variance(BaseRollingWindow):
         self._sum.append(val)
         self._sq_sum.append(val ** 2)
         s, sq, n = self._sum.get_state(), self._sq_sum.get_state(), self.length
-        self._state = (sq / n - (s / n) ** 2) * n / (n - 1)
+        self._state = (sq / n - (s / n) ** 2)
 
 
 
