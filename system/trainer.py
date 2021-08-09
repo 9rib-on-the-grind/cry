@@ -61,13 +61,14 @@ class Trainer:
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        # self.trim_bad_experts(pair_expert, trashold=.1)
+        self.trim_bad_experts(pair_expert, trashold=.2)
+        pair_expert.show(overview=False)
         config.serialize_expert_to_json(expert=pair_expert)
 
     def estimate_experts(self, experts: list[experts.RuleExpert],
                                pair: str,
                                timeframe: str):
-        ndays = {'1d': 300, '4h': 180, '1h': 90, '15m': 30, '1m': 2}
+        ndays = {'1d': 45, '4h': 180, '1h': 90, '15m': 30, '1m': 2}
         for expert in experts:
             if expert._estimated_profit is None:
                 pair_trader = self.construct_pair_trader_from_rule_expert(expert, pair, timeframe)
@@ -102,8 +103,9 @@ class Trainer:
             for timeframe in pair_trader.timeframes:
                 df = load_history(pair_trader.pair, timeframe)
                 split = df['Close time'].searchsorted(start_time)
-                init, new = df.iloc[max(split-500, 0): split], df.iloc[split:].values
-                init_data.add(data=init.values.T, keys=list(init), location=[timeframe, 'History'])
+                init, new = df.iloc[max(split-1000, 0): split].values.T, df.iloc[split:].values
+                mapping = {key: val for key, val in zip(iter(df), iter(init))}
+                init_data.add(mapping, location=[timeframe, 'History'])
                 new_data[timeframe] = new
             return init_data, new_data
 

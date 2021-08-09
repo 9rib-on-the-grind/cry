@@ -14,6 +14,11 @@ class BaseTrader:
         assert hasattr(self, 'expert'), 'PairExpert is not set'
         self.data = data
         self.expert.set_data(data)
+        keys = list(self.data[self.min_timeframe, 'History'].keys())
+        self.data.drop('History', recursively=True)
+        for timeframe in self.timeframes:
+            self.data.add({key: None for key in keys}, location=[timeframe])
+
 
 
 
@@ -44,14 +49,13 @@ class PairTrader(BaseTrader):
         """
         
         for timeframe, data in data.items():
-            self.data[timeframe, 'History'].append(data)
-            self.data[timeframe, 'History'].set_update_hash(time.time())
+            self.data[timeframe].update(data)
         self.expert.update()
 
     def act(self):
         timeframe =  self.min_timeframe
-        price = self.data[timeframe, 'History', 'Close'][-1]
-        time = self.data[timeframe, 'History', 'Close time'][-1]
+        price = self.data[timeframe, 'Close']
+        time = self.data[timeframe, 'Close time']
         estimation = self.expert.estimate()
         self.estimations.append(estimation)
         if estimation > self.trashold and self.balance > 0: # buy

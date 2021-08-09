@@ -7,13 +7,10 @@ class BaseIndicator:
     name = 'Base Indicator'
 
     def __init__(self):
-        self._state = None
         self.update_hash = None
 
     def set_data(self, data: data.DataMaintainer):
-        self._history = data['History']
-        if hasattr(self, 'source_name'):
-            self._source = self._history[self.source_name]
+        self._data = data
         self.init_state()
 
     def get_parameters(self):
@@ -24,7 +21,7 @@ class BaseIndicator:
         raise NotImplementedError()
 
     def is_updated(self):
-        return self.update_hash == self._history.update_hash
+        return self.update_hash == self._data.update_hash
 
     def update(self):
         raise NotImplementedError()
@@ -38,11 +35,11 @@ class MovingAverageIndicator(BaseIndicator):
         super().__init__(**kwargs)
 
         self.length = length
-        self.source_name = source
+        self.source = source
 
     def init_state(self):
         self._sma = rolling.Average(length=self.length)
-        for val in self._source:
+        for val in self._data['History', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -50,13 +47,13 @@ class MovingAverageIndicator(BaseIndicator):
             
     def update(self, val: float = None):
         initialization = (val is not None)
-        val = val if initialization else self._source[-1]
+        val = val if initialization else self._data[self.source]
         if not self.is_updated() or initialization:
-            self.update_hash = self._history.update_hash
+            self.update_hash = self._data.update_hash
             self._sma.append(val)
 
     def get_parameters(self):
-        return {'length': self.length, 'source': self.source_name}
+        return {'length': self.length, 'source': self.source}
 
 
 
@@ -67,13 +64,13 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         super().__init__(**kwargs)
 
         self.length = length
-        self.source_name = source
+        self.source = source
 
     def init_state(self):
         self._up_smma = rolling.ExponentialAverage(alpha=1/self.length)
         self._down_smma = rolling.ExponentialAverage(alpha=1/self.length)
         self._prev = 0
-        for val in self._source:
+        for val in self._data['History', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -83,9 +80,9 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
             
     def update(self, val: float = None):
         initialization = (val is not None)
-        val = val if initialization else self._source[-1]
+        val = val if initialization else self._data[self.source]
         if not self.is_updated() or initialization:
-            self.update_hash = self._history.update_hash
+            self.update_hash = self._data.update_hash
             diff = val - self._prev
             up = max(val - self._prev, 0)
             down = max(self._prev - val, 0)
@@ -94,7 +91,7 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
             self._prev = val
             
     def get_parameters(self):
-        return {'length': self.length, 'source': self.source_name}
+        return {'length': self.length, 'source': self.source}
 
 
 
@@ -105,13 +102,13 @@ class TripleExponentialIndicator(BaseIndicator):
         super().__init__(**kwargs)
 
         self.length = length
-        self.source_name = source
+        self.source = source
 
     def init_state(self):
         self._tema = rolling.TripleExponentialAverage(span=self.length)
         self._signal_line = rolling.Average(length=self.length)
         self._prev = 1
-        for val in self._source:
+        for val in self._data['History', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -119,15 +116,15 @@ class TripleExponentialIndicator(BaseIndicator):
             
     def update(self, val: float = None):
         initialization = (val is not None)
-        val = val if initialization else self._source[-1]
+        val = val if initialization else self._data[self.source]
         if not self.is_updated() or initialization:
-            self.update_hash = self._history.update_hash
+            self.update_hash = self._data.update_hash
             self._prev = self._tema.get_state()
             self._tema.append(val)
             self._signal_line.append(self._tema.get_state())
 
     def get_parameters(self):
-        return {'length': self.length, 'source': self.source_name}
+        return {'length': self.length, 'source': self.source}
 
 
 
@@ -142,7 +139,6 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.long = long
 
     def init_state(self):
-        self._low, self._high = self._history['Low'], self._history['High']
         self.min_short = rolling.Min(length=self.short)
         self.max_short = rolling.Max(length=self.short)
         self.min_mid = rolling.Min(length=self.mid)
@@ -151,7 +147,7 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.max_long = rolling.Max(length=self.long)
         self.senkouA = rolling.Lag(length=self.mid)
         self.senkouB = rolling.Lag(length=self.mid)
-        for low, high in zip(self._low, self._high):
+        for low, high in zip(self._data['History', 'Low'], self._data['History', 'High']):
             self.update(low, high)
 
     def get_state(self):
@@ -159,9 +155,9 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
 
     def update(self, low: float = None, high: float = None):
         initialization = (low is not None)
-        low, high = (low, high) if initialization else (self._low[-1], self._high[-1])
+        low, high = (low, high) if initialization else (self._data['Low'], self._data['High'])
         if not self.is_updated() or initialization:
-            self.update_hash = self._history.update_hash
+            self.update_hash = self._data.update_hash
 
             for min in (self.min_short, self.min_mid, self.min_long):
                 min.append(low)
@@ -185,12 +181,12 @@ class BollingerBandsIndicator(BaseIndicator):
 
         self.length = length
         self.mult = mult
-        self.source_name = source
+        self.source = source
 
     def init_state(self):
         self._sma = rolling.Average(length=self.length)
         self._mstd = rolling.StandardDeviation(length=self.length)
-        for val in self._source:
+        for val in self._data['History', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -199,9 +195,9 @@ class BollingerBandsIndicator(BaseIndicator):
 
     def update(self, val: float = None):
         initialization = (val is not None)
-        val = val if initialization else self._source[-1]
+        val = val if initialization else self._data[self.source]
         if not self.is_updated() or initialization:
-            self.update_hash = self._history.update_hash
+            self.update_hash = self._data.update_hash
             self._sma.append(val)
             self._mstd.append(val)
 
