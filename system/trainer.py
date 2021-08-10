@@ -147,10 +147,10 @@ class Trainer:
         elif nbest is not None:
             return candidates[:nbest]
 
-    def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=7, nchildren=3):
-        def estimate_trader(pair_trader: trader.PairTrader) -> float:
+    def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=20, nchildren=5):
+        def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
-            pair_trader.profit = profit if ntrades >= min_trades else -999
+            ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
 
         def construct_pair_traider_from_weights(weights: list['weights', list['inner weights']]) -> trader.PairTrader:
             pair_trader = trader.PairTrader('BTC/USDT')
@@ -167,6 +167,15 @@ class Trainer:
             return [weights + np.random.normal(size=weights.shape, scale=1), 
                     [change_weights(weights) for weights in inner]]
 
+        def parallel_estimation(traders: list[trader.PairTrader]):
+            results = mp.Manager().dict()
+            jobs = [mp.Process(target=estimate_trader, args=(trader,), kwargs={'ret_dict': results}) for trader in traders]
+            for job in jobs:
+                job.start()
+            for job in jobs:
+                job.join()
+            return [results[hash(trader)] for trader in traders]
+
         lr, decay = 1, .01
         min_trades = 10
         parents = [pair_trader.expert.get_weights()]
@@ -178,21 +187,19 @@ class Trainer:
                 children += [change_weights(weights) for _ in range(nchildren)]
             parents += children
             traders = [construct_pair_traider_from_weights(weights) for weights in parents]
-            # with mp.Pool() as p:
-            #     p.map(estimate_trader, traders)
-            for pair_trader in traders:
-                estimate_trader(pair_trader)
-            traders.sort(reverse=True, key=lambda x: x.profit)
-            parents = [trader.expert.get_weights() for trader in traders][:population]
 
-            best_trader = traders[0]
-            best_trader.show_evaluation()
+            estimations = parallel_estimation(traders)
+            for pair_trader, profit in zip(traders, estimations):
+                pair_trader.profit = profit
+            traders = list(sorted(traders, reverse=True, key=lambda x: x.profit))[:population]
+            parents = [pair_trader.expert.get_weights() for pair_trader in traders]
 
-        pprint(best_trader.expert.get_weights())
+            best = traders[0]
+            print(f'profit: {best.profit:.2f} %')
 
         found_trader = trader.PairTrader('BTC/USDT')
         expert = config.deserialize_expert_from_json()
-        expert.set_weights(best_trader.expert.get_weights())
+        expert.set_weights(best.expert.get_weights())
         found_trader.set_expert(expert)
         self.simulate_pair_trader(found_trader, ndays=300, display=True)
 
