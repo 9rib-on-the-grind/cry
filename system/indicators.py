@@ -112,7 +112,7 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
             self._up_smma.append(up)
             self._down_smma.append(down)
             self._prev = val
-            
+
     def get_parameters(self):
         return {'length': self.length, 'source': self.source}
 
@@ -160,6 +160,8 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.short = short
         self.mid = long // 2
         self.long = long
+        if not self.short < self.mid < self.long:
+            raise ValueError('Invalid short/long period combination')
 
     def init_state(self):
         self.min_short = rolling.Min(length=self.short)
