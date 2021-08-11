@@ -57,8 +57,6 @@ class Min(BaseRollingWindow):
         self.time = 0
 
     def append(self, val: float):
-        if not val:
-            raise SystemError()
         if self._queue[0][0] == self.time - self.length:
             self._queue.popleft()
         while self._queue and self._queue[-1][1] >= val:
