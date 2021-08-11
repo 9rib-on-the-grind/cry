@@ -58,7 +58,7 @@ class BaseRule:
         return {'patience': self._patience}
 
     def signal(self, buy: int, sell: int, instant: bool = True):
-        condition = lambda x: x == self._patience if instant else lambda x: x >= self._patience
+        condition = (lambda x: x == self._patience) if instant else (lambda x: x >= self._patience)
         if condition(buy):
             return Decision.BUY
         elif condition(sell):
