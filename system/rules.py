@@ -48,6 +48,10 @@ class BaseRule:
         self._state = None
         self._patience = patience
 
+    def compatible(self, *args: indicators.BaseIndicator):
+        """Return wether rule can logicaly be applied to indicator(s)."""
+        return True
+
     def update(self):
         raise NotImplementedError()
     
@@ -100,6 +104,10 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._cross = CrossoverState()
+
+    def compatible(self, slow: indicators.MovingAverageIndicator, 
+                         fast: indicators.MovingAverageIndicator):
+        return slow.length > fast.length
 
     def decide(self, slow: indicators.MovingAverageIndicator, 
                      fast: indicators.MovingAverageIndicator):
