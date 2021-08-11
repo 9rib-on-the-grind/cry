@@ -20,36 +20,41 @@ import config
 
 
 class Trainer:
-    rule_classes = [
-        rules.MovingAverageCrossoverRule,
-        rules.RelativeStrengthIndexTrasholdRule,
-        rules.TripleExponentialDirectionChangeRule,
-        rules.IchimokuKinkoHyoTenkanKijunCrossoverRule,
-        rules.BollingerBandsLowerUpperCrossoverRule,
-        rules.BollingerBandsLowerMidCrossoverRule,
-        rules.BollingerBandsUpperMidCrossoverRule,
+    rule_names = [
+        'MovingAverageCrossoverRule',
+        'RelativeStrengthIndexTrasholdRule',
+        'TripleExponentialDirectionChangeRule',
+        'IchimokuKinkoHyoTenkanKijunCrossoverRule',
+        'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
+        'IchimokuKinkoHyoChikouCrossoverRule',
+        # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
+        'BollingerBandsLowerUpperCrossoverRule',
+        'BollingerBandsLowerMidCrossoverRule',
+        'BollingerBandsUpperMidCrossoverRule',
     ]
+
+    timeframes = ['1d', '4h', '1h', '15m', '1m']
 
     def __init__(self):
         self.loaded_history = {}
 
     def construct_system(self):
-        # timeframes = ['1d', '4h', '1h']
-        timeframes = ['1h']
+        timeframes = self.timeframes
 
         reestimate = False
         reestimate = True
 
         if reestimate:
+            config.create_searchspace_config()
             pair = 'BTC/USDT'
             base, quote = pair.split('/')
             pair_expert = experts.PairExpert(base, quote)
             timeframe_lst = []
             for timeframe in timeframes:
-                candidates = [expert for rule_cls in self.rule_classes 
-                                     for expert in config.get_experts_from_searchspace(rule_cls)]
-                print(f'searching {pair} {timeframe} | {len(candidates)} candidates')
-                self.estimate_experts(candidates, pair, timeframe)
+                candidates = [expert for rule in self.rule_names
+                                     for expert in config.get_experts_from_searchspace(timeframe, rule)]
+                print(f'searching {pair} {timeframe:>5}{len(candidates):>10} candidates')
+                # self.estimate_experts(candidates, pair, timeframe)
 
                 timeframe_expert = experts.TimeFrameExpert(timeframe)
                 timeframe_expert.set_experts(candidates)
@@ -61,8 +66,9 @@ class Trainer:
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        self.trim_bad_experts(pair_expert, trashold=.2)
-        pair_expert.show(overview=False)
+        # self.trim_bad_experts(pair_expert, trashold=.2)
+        pair_expert.show()
+        raise SystemExit()
         config.serialize_expert_to_json(expert=pair_expert)
 
     def estimate_experts(self, experts: list[experts.RuleExpert],
@@ -140,7 +146,7 @@ class Trainer:
                                 nbest: int = None,
                                 percent: 'float (0, 1)' = None) -> list[experts.RuleExpert]:
         nbest = nbest if percent is None else int(percent * len(candidates))
-        candidates = [expert for expert in candidates if expert._estimated_ntrades > 5 and expert._estimated_profit > 0]
+        candidates = [expert for expert in candidates if expert._estimated_ntrades > 5]
         candidates.sort(reverse=True, key=lambda x: x._estimated_profit)
         if trashold is not None:
             return [expert for expert in candidates if expert._estimated_profit > trashold]
