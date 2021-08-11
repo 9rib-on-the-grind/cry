@@ -180,8 +180,10 @@ class IchimokuKinkoHyoChikouCrossoverRule(BaseCrossoverRule):
         super().__init__(**kwargs)
         self._cross = CrossoverState()
 
-    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
-        *other, close, lag = ichimoku.get_state()
+    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator,
+                     close: indicators.PriceIndicator):
+        *other, lag = ichimoku.get_state()
+        close = close.get_state()
         buy, sell = self._cross.update(close, lag)
         return self.signal(buy, sell)
 
@@ -193,7 +195,8 @@ class IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule(BaseSupportResistanceR
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
+    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator,
+                     close: indicators.PriceIndicator):
         raise NotImplementedError()
 
 
@@ -207,11 +210,11 @@ class BollingerBandsLowerUpperCrossoverRule(BaseCrossoverRule):
         self._upper_cross = CrossoverState()
 
     def decide(self, bb: indicators.BollingerBandsIndicator,
-                     ma: indicators.MovingAverageIndicator):
+                     close: indicators.PriceIndicator):
         mid, lower, upper = bb.get_state()
-        val = ma.get_state()
-        buy, _ = self._lower_cross.update(lower, val)
-        sell, _ = self._upper_cross.update(val, upper)
+        close = close.get_state()
+        buy, _ = self._lower_cross.update(lower, close)
+        sell, _ = self._upper_cross.update(close, upper)
         return self.signal(buy, sell, instant=False)
 
 
@@ -225,11 +228,11 @@ class BollingerBandsLowerMidCrossoverRule(BaseCrossoverRule):
         self._mid_cross = CrossoverState()
 
     def decide(self, bb: indicators.BollingerBandsIndicator,
-                     ma: indicators.MovingAverageIndicator):
+                     close: indicators.PriceIndicator):
         mid, lower, upper = bb.get_state()
-        val = ma.get_state()
-        buy, _ = self._lower_cross.update(lower, val)
-        sell, _ = self._mid_cross.update(val, mid)
+        close = close.get_state()
+        buy, _ = self._lower_cross.update(lower, close)
+        sell, _ = self._mid_cross.update(close, mid)
         return self.signal(buy, sell)
 
 
@@ -243,9 +246,9 @@ class BollingerBandsUpperMidCrossoverRule(BaseCrossoverRule):
         self._mid_cross = CrossoverState()
 
     def decide(self, bb: indicators.BollingerBandsIndicator,
-                     ma: indicators.MovingAverageIndicator):
+                     close: indicators.PriceIndicator):
         mid, lower, upper = bb.get_state()
-        val = ma.get_state()
-        buy, _ = self._upper_cross.update(val, upper)
-        sell, _ = self._mid_cross.update(mid, val)
+        close = close.get_state()
+        buy, _ = self._upper_cross.update(close, upper)
+        sell, _ = self._mid_cross.update(mid, close)
         return self.signal(buy, sell)

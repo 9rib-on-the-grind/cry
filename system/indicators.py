@@ -28,6 +28,28 @@ class BaseIndicator:
 
 
 
+class PriceIndicator(BaseIndicator):
+    name = 'Price'
+
+    def __init__(self, source: str = 'Close', **kwargs):
+        super().__init__(**kwargs)
+
+        self.source = source
+
+    def init_state(self):
+        pass
+
+    def get_state(self):
+        return self._data[self.source]
+
+    def update(self):
+        pass
+
+    def get_parameters(self):
+        return {'source': self.source}
+
+
+
 class MovingAverageIndicator(BaseIndicator):
     name = 'MA'
 
@@ -150,13 +172,12 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.senkouA_last = None
         self.senkouB_last = None
         self.close_lag = rolling.Lag(length=self.mid)
-        self.close_last = None
         for high, low, close in zip(self._data['Init', 'High'], self._data['Init', 'Low'], self._data['Init', 'Close']):
             self.update(high, low, close)
 
     def get_state(self):
         return (self.tenkan, self.kijun, self.senkouA_last, self.senkouB_last,
-                       self.senkouA_lag.get_state(), self.senkouB_lag.get_state(), self.close_last, self.close_lag.get_state())
+                       self.senkouA_lag.get_state(), self.senkouB_lag.get_state(), self.close_lag.get_state())
 
     def update(self, high: float = None, low: float = None, close: float = None):
         initialization = (high is not None)
@@ -174,7 +195,6 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
             self.senkouB_last = (self.max_long.get_state() + self.min_long.get_state()) / 2
             self.senkouA_lag.append(self.senkouA_last)
             self.senkouB_lag.append(self.senkouB_last)
-            self.close_last = close
             self.close_lag.append(close)
 
     def get_parameters(self):
