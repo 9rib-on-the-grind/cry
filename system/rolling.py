@@ -3,9 +3,10 @@ import collections
 
 
 class BaseRollingWindow:
-    def __init__(self, length: int = None):
+    def __init__(self, length: int = None, *, enqueueing: bool = True):
         self.length = length
-        self._queue = collections.deque(maxlen=self.length)
+        if enqueueing:
+            self._queue = collections.deque(maxlen=self.length)
         self._state = 0
 
     def get_state(self):
@@ -14,8 +15,8 @@ class BaseRollingWindow:
 
 
 class Mean(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, length):
+        super().__init__(length)
 
     def append(self, val: float):
         if len(self._queue) >= self.length:
@@ -26,8 +27,8 @@ class Mean(BaseRollingWindow):
 
 
 class ExponentialAverage(BaseRollingWindow):
-    def __init__(self, alpha: float = None, span: float = None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, alpha: float = None, span: float = None):
+        super().__init__(enqueueing=False)
         self._alpha = alpha or 2 / (span + 1)
 
     def append(self, val: float):
@@ -36,8 +37,8 @@ class ExponentialAverage(BaseRollingWindow):
 
 
 class TripleExponentialAverage(BaseRollingWindow):
-    def __init__(self, alpha: float = None, span: float = None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, alpha: float = None, span: float = None):
+        super().__init__(enqueueing=False)
         self._alpha = alpha or 2 / (span + 1)
         self._exp_avg = [ExponentialAverage(self._alpha) for _ in range(3)]
 
@@ -50,8 +51,8 @@ class TripleExponentialAverage(BaseRollingWindow):
 
 
 class Min(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, length):
+        super().__init__(length)
         self._queue.append((-self.length, None))
         self.time = 0
 
@@ -69,8 +70,8 @@ class Min(BaseRollingWindow):
 
 
 class Max(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, length):
+        super().__init__(length)
         self._queue.append((-self.length, None))
         self.time = 0
 
@@ -86,8 +87,8 @@ class Max(BaseRollingWindow):
 
 
 class Lag(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, length):
+        super().__init__(length)
         self._queue.append(0)
 
     def append(self, val: float):
@@ -97,8 +98,8 @@ class Lag(BaseRollingWindow):
 
 
 class Sum(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, length):
+        super().__init__(length)
 
     def append(self, val: float):
         if len(self._queue) >= self.length:
@@ -109,10 +110,10 @@ class Sum(BaseRollingWindow):
 
 
 class Variance(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._sum = Sum(length=self.length)
-        self._sq_sum = Sum(length=self.length)
+    def __init__(self, length):
+        super().__init__(length, enqueueing=False)
+        self._sum = Sum(self.length)
+        self._sq_sum = Sum(self.length)
 
     def append(self, val: float):
         self._sum.append(val)
@@ -123,9 +124,9 @@ class Variance(BaseRollingWindow):
 
 
 class StandardDeviation(BaseRollingWindow):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._var = Variance(length=self.length)
+    def __init__(self, length):
+        super().__init__(length, enqueueing=False)
+        self._var = Variance(self.length)
 
     def append(self, val: float):
         self._var.append(val)
