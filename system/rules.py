@@ -88,6 +88,12 @@ class BaseDirectionChangeRule(BaseRule):
 
 
 
+class BaseSupportResistanceRule(BaseRule):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+
 class MovingAverageCrossoverRule(BaseCrossoverRule):
     name = 'MACrossover'
 
@@ -147,9 +153,48 @@ class IchimokuKinkoHyoTenkanKijunCrossoverRule(BaseCrossoverRule):
         self._cross = CrossoverState()
 
     def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
-        tenkan, kijun, _, _ = ichimoku.get_state()
+        tenkan, kijun, *other = ichimoku.get_state()
         buy, sell = self._cross.update(tenkan, kijun)
         return self.signal(buy, sell)
+
+
+
+class IchimokuKinkoHyoSenkouASenkouBCrossoverRule(BaseCrossoverRule):
+    name = 'IchimokuSenkouASenkouBCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cross = CrossoverState()
+
+    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
+        _, _, senkouA, senkouB, *other = ichimoku.get_state()
+        buy, sell = self._cross.update(senkouA, senkouB)
+        return self.signal(buy, sell)
+
+
+
+class IchimokuKinkoHyoChikouCrossoverRule(BaseCrossoverRule):
+    name = 'IchimokuChikouCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cross = CrossoverState()
+
+    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
+        *other, close, lag = ichimoku.get_state()
+        buy, sell = self._cross.update(close, lag)
+        return self.signal(buy, sell)
+
+
+
+class IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule(BaseSupportResistanceRule):
+    name = 'IchimokuSenkouASenkouBSupportResistance'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def decide(self, ichimoku: indicators.IchimokuKinkoHyoIndicator):
+        raise NotImplementedError()
 
 
 

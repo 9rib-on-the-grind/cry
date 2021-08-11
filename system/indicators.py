@@ -145,17 +145,22 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.max_mid = rolling.Max(length=self.mid)
         self.min_long = rolling.Min(length=self.long)
         self.max_long = rolling.Max(length=self.long)
-        self.senkouA = rolling.Lag(length=self.mid)
-        self.senkouB = rolling.Lag(length=self.mid)
-        for low, high in zip(self._data['Init', 'Low'], self._data['Init', 'High']):
-            self.update(low, high)
+        self.senkouA_lag = rolling.Lag(length=self.mid)
+        self.senkouB_lag = rolling.Lag(length=self.mid)
+        self.senkouA_last = None
+        self.senkouB_last = None
+        self.close_lag = rolling.Lag(length=self.mid)
+        self.close_last = None
+        for high, low, close in zip(self._data['Init', 'High'], self._data['Init', 'Low'], self._data['Init', 'Close']):
+            self.update(high, low, close)
 
     def get_state(self):
-        return self.tenkan, self.kijun, self.senkouA.get_state(), self.senkouB.get_state()
+        return (self.tenkan, self.kijun, self.senkouA_last, self.senkouB_last,
+                       self.senkouA_lag.get_state(), self.senkouB_lag.get_state(), self.close_last, self.close_lag.get_state())
 
-    def update(self, low: float = None, high: float = None):
-        initialization = (low is not None)
-        low, high = (low, high) if initialization else (self._data['Low'], self._data['High'])
+    def update(self, high: float = None, low: float = None, close: float = None):
+        initialization = (high is not None)
+        high, low, close = (high, low, close) if initialization else (self._data['High'], self._data['Low'], self._data['Close'])
         if not self.is_updated() or initialization:
             self.update_hash = self._data.update_hash
 
@@ -165,8 +170,12 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
                 max.append(high)
             self.tenkan = (self.max_short.get_state() + self.min_short.get_state()) / 2
             self.kijun = (self.max_mid.get_state() + self.min_mid.get_state()) / 2
-            self.senkouA.append((self.tenkan + self.kijun) / 2)
-            self.senkouB.append((self.max_long.get_state() + self.min_long.get_state()) / 2)
+            self.senkouA_last = (self.tenkan + self.kijun) / 2
+            self.senkouB_last = (self.max_long.get_state() + self.min_long.get_state()) / 2
+            self.senkouA_lag.append(self.senkouA_last)
+            self.senkouB_lag.append(self.senkouB_last)
+            self.close_last = close
+            self.close_lag.append(close)
 
     def get_parameters(self):
         return {'short': self.short, 'long': self.long}
