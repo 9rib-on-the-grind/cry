@@ -96,7 +96,8 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
             self.update(val)
 
     def get_state(self):
-        rs = self._up_smma.get_state() / self._down_smma.get_state()
+        up, down = self._up_smma.get_state(), self._down_smma.get_state()
+        rs = up / down if down != 0 else float('inf')
         rsi = 100 - 100 / (1 + rs)
         return rsi
             
