@@ -128,6 +128,8 @@ class RuleExpert(BaseExpert):
         super().__init__()
         self._rule = rule
         self._indicators = indicators
+        if not self._rule.compatible(*self._indicators):
+            raise ValueError('Rule is incompatible with indicators')
         indicator_names = [indicator.name for indicator in self._indicators]
         self.name = f'RuleExpert [{self._rule.name}, {str(indicator_names)}]'
         del self._inner_experts
