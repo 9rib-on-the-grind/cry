@@ -10,7 +10,7 @@ class CrossoverState:
     """
 
     def __init__(self):
-        self._a = self._b = float('inf')
+        self._a = self._b = 0
     
     def update(self, a: float, b: float):
         """Update relative positions of two lines, return a and b dominance."""
