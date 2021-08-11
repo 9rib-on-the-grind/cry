@@ -13,7 +13,7 @@ class BaseRollingWindow:
 
 
 
-class Average(BaseRollingWindow):
+class Mean(BaseRollingWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
