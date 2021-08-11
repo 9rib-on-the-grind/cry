@@ -13,7 +13,7 @@ class CrossoverState:
         self._a = self._b = float('inf')
     
     def update(self, a: float, b: float):
-        """Update relative positions of two lines, return a and b dominance"""
+        """Update relative positions of two lines, return a and b dominance."""
         if a > b:
             self._a += 1
             self._b = 0
@@ -68,7 +68,6 @@ class BaseRule:
 
 
 
-
 class BaseCrossoverRule(BaseRule):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -107,9 +106,6 @@ class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
     name = 'RSITrashold'
 
     def __init__(self, lower: float, upper: float, **kwargs):
-        """
-        Args:
-            offset. Float in (0, 50). Trashold levels are defined as 50 +- offset"""
         super().__init__(lower, upper, **kwargs)
         self._lower_cross = CrossoverState()
         self._upper_cross = CrossoverState()

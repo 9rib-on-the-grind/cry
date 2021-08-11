@@ -26,11 +26,6 @@ class BaseExpert:
     def set_data(self, data: data.DataMaintainer):
         raise NotImplementedError()
 
-    def get_weights(self) -> list['weights', list['inner weights']]:
-        inner_weights = [expert.get_weights() for expert in self._inner_experts 
-                                              if hasattr(expert, '_inner_experts')]
-        return [self._original_weights, inner_weights]
-
     def set_weights(self, weights: list['weights', list['inner weights']] = None):
         if hasattr(self, '_inner_experts'):
             if weights is not None:
@@ -41,6 +36,11 @@ class BaseExpert:
             for expert, weights in zip(self._inner_experts, inner):
                 expert.set_weights(weights)
             self.normalize_weights()
+
+    def get_weights(self) -> list['weights', list['inner weights']]:
+        inner_weights = [expert.get_weights() for expert in self._inner_experts
+                                              if hasattr(expert, '_inner_experts')]
+        return [self._original_weights, inner_weights]
 
     def normalize_weights(self):
         self._original_weights, self._weights = self._weights, softmax(self._weights)
@@ -108,10 +108,8 @@ class TimeFrameExpert(BaseExpert):
         return {'timeframe': self.timeframe}
 
     def summary(self, indentation):
-        count = collections.defaultdict(int)
+        count = collections.Counter(expert.name for expert in self._inner_experts)
         count['Total'] = len(self._inner_experts)
-        for expert in self._inner_experts:
-            count[expert.name] += 1
         for name, count in count.items():
             print(f'{" " * indentation}{count:>3} {name}')
 
@@ -122,8 +120,8 @@ class RuleExpert(BaseExpert):
     """Expert class for handling specific trading rule.
 
     Args:
-        indicators: List of BaseIndicator. Indicators to which rule is applied.
-        rule: BaseRule. Trading rule that applies to indicators.
+        _rule: BaseRule. Trading rule that applies to indicators.
+        _indicators: Sequence of BaseIndicator. Indicators to which rule is applied.
     """
 
     def __init__(self, rule: rules.BaseRule, indicators: Sequence[indicators.BaseIndicator]):

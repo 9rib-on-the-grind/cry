@@ -39,7 +39,7 @@ class MovingAverageIndicator(BaseIndicator):
 
     def init_state(self):
         self._sma = rolling.Average(length=self.length)
-        for val in self._data['History', self.source]:
+        for val in self._data['Init', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -70,7 +70,7 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         self._up_smma = rolling.ExponentialAverage(alpha=1/self.length)
         self._down_smma = rolling.ExponentialAverage(alpha=1/self.length)
         self._prev = 0
-        for val in self._data['History', self.source]:
+        for val in self._data['Init', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -108,7 +108,7 @@ class TripleExponentialIndicator(BaseIndicator):
         self._tema = rolling.TripleExponentialAverage(span=self.length)
         self._signal_line = rolling.Average(length=self.length)
         self._prev = 1
-        for val in self._data['History', self.source]:
+        for val in self._data['Init', self.source]:
             self.update(val)
 
     def get_state(self):
@@ -147,7 +147,7 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
         self.max_long = rolling.Max(length=self.long)
         self.senkouA = rolling.Lag(length=self.mid)
         self.senkouB = rolling.Lag(length=self.mid)
-        for low, high in zip(self._data['History', 'Low'], self._data['History', 'High']):
+        for low, high in zip(self._data['Init', 'Low'], self._data['Init', 'High']):
             self.update(low, high)
 
     def get_state(self):
@@ -186,7 +186,7 @@ class BollingerBandsIndicator(BaseIndicator):
     def init_state(self):
         self._sma = rolling.Average(length=self.length)
         self._mstd = rolling.StandardDeviation(length=self.length)
-        for val in self._data['History', self.source]:
+        for val in self._data['Init', self.source]:
             self.update(val)
 
     def get_state(self):

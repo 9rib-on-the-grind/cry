@@ -14,8 +14,8 @@ class BaseTrader:
         assert hasattr(self, 'expert'), 'PairExpert is not set'
         self.data = data
         self.expert.set_data(data)
-        keys = list(self.data[self.min_timeframe, 'History'].keys())
-        self.data.drop('History', recursively=True)
+        keys = list(self.data[self.min_timeframe, 'Init'].keys())
+        self.data.drop('Init', recursively=True)
         for timeframe in self.timeframes:
             self.data.add({key: None for key in keys}, location=[timeframe])
 

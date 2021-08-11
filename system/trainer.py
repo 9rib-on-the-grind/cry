@@ -104,8 +104,8 @@ class Trainer:
                 df = load_history(pair_trader.pair, timeframe)
                 split = df['Close time'].searchsorted(start_time)
                 init, new = df.iloc[max(split-1000, 0): split].values.T, df.iloc[split:].values
-                mapping = {key: val for key, val in zip(iter(df), iter(init))}
-                init_data.add(mapping, location=[timeframe, 'History'])
+                mapping = {key: val for key, val in zip(df, init)}
+                init_data.add(mapping, location=[timeframe, 'Init'])
                 new_data[timeframe] = new
             return init_data, new_data
 
@@ -191,7 +191,7 @@ class Trainer:
             estimations = parallel_estimation(traders)
             for pair_trader, profit in zip(traders, estimations):
                 pair_trader.profit = profit
-            traders = list(sorted(traders, reverse=True, key=lambda x: x.profit))[:population]
+            traders = heapq.nlargest(population, traders, key=lambda x: x.profit)
             parents = [pair_trader.expert.get_weights() for pair_trader in traders]
 
             best = traders[0]
