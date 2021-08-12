@@ -16,7 +16,7 @@ class BaseExpert:
     def __init__(self):
         self.name = 'BaseExpert'
         self._inner_experts = None
-        self._weights = None
+        self._weights = self._original_weights = np.array([])
         self._estimated_profit = None
         self._estimated_ntrades = None
 
@@ -43,7 +43,8 @@ class BaseExpert:
         return [self._original_weights, inner_weights]
 
     def normalize_weights(self):
-        self._original_weights, self._weights = self._weights, softmax(self._weights)
+        if self._weights.size > 0:
+            self._original_weights, self._weights = self._weights, softmax(self._weights)
 
     def get_parameters(self):
         raise NotImplementedError()
