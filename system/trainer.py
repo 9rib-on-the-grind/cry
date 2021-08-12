@@ -31,6 +31,8 @@ class Trainer:
         'BollingerBandsLowerUpperCrossoverRule',
         'BollingerBandsLowerMidCrossoverRule',
         'BollingerBandsUpperMidCrossoverRule',
+        'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
+        'MovingAverageConvergenceDivergenceZeroCrossoverRule',
     ]
 
     timeframes = ['1d', '4h', '1h', '15m', '1m']
