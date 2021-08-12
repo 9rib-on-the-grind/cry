@@ -27,7 +27,7 @@ class Average(BaseRollingWindow):
 
 
 class ExponentialAverage(BaseRollingWindow):
-    def __init__(self, alpha: float = None, span: float = None):
+    def __init__(self, *, alpha: float = None, span: float = None):
         super().__init__(enqueueing=False)
         self._alpha = alpha or 2 / (span + 1)
 
