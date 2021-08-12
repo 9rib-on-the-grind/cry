@@ -60,7 +60,7 @@ class MovingAverageIndicator(BaseIndicator):
         self.source = source
 
     def init_state(self):
-        self._sma = rolling.Mean(length=self.length)
+        self._sma = rolling.Average(length=self.length)
         for val in self._data['Init', self.source]:
             self.update(val)
 
@@ -129,7 +129,7 @@ class TripleExponentialIndicator(BaseIndicator):
 
     def init_state(self):
         self._tema = rolling.TripleExponentialAverage(span=self.length)
-        self._signal_line = rolling.Mean(length=self.length)
+        self._signal_line = rolling.Average(length=self.length)
         self._prev = 1
         for val in self._data['Init', self.source]:
             self.update(val)
@@ -216,7 +216,7 @@ class BollingerBandsIndicator(BaseIndicator):
         self.source = source
 
     def init_state(self):
-        self._sma = rolling.Mean(length=self.length)
+        self._sma = rolling.Average(length=self.length)
         self._mstd = rolling.StandardDeviation(length=self.length)
         for val in self._data['Init', self.source]:
             self.update(val)
