@@ -55,6 +55,7 @@ def create_searchspace_config():
         'TripleExponentialIndicator',
         'IchimokuKinkoHyoIndicator',
         'BollingerBandsIndicator',
+        'MovingAverageConvergenceDivergenceIndicator',
     ]
 
     rule_names = [
@@ -68,6 +69,8 @@ def create_searchspace_config():
         'BollingerBandsLowerMidCrossoverRule',
         'BollingerBandsUpperMidCrossoverRule',
         'BollingerBandsLowerUpperCrossoverRule',
+        'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
+        'MovingAverageConvergenceDivergenceZeroCrossoverRule',
     ]
 
     rule_indicators  = {
@@ -81,6 +84,8 @@ def create_searchspace_config():
         'BollingerBandsLowerMidCrossoverRule': ['BollingerBandsIndicator', 'PriceIndicator'],
         'BollingerBandsUpperMidCrossoverRule': ['BollingerBandsIndicator', 'PriceIndicator'],
         'BollingerBandsLowerUpperCrossoverRule': ['BollingerBandsIndicator', 'PriceIndicator'],
+        'MovingAverageConvergenceDivergenceSignalLineCrossoverRule': ['MovingAverageConvergenceDivergenceIndicator'],
+        'MovingAverageConvergenceDivergenceZeroCrossoverRule': ['MovingAverageConvergenceDivergenceIndicator'],
     }
 
     for timeframe in ranges:
@@ -97,7 +102,8 @@ def create_searchspace_config():
         indicator_parameters = {indicator: {'length': space} for indicator in indicator_names}
         indicator_parameters['PriceIndicator'] = {}
         indicator_parameters['IchimokuKinkoHyoIndicator'] = {'short': space, 'long': space}
-        indicator_parameters['BollingerBandsIndicator'] = {'length': space, 'mult': np.linspace(1.5, 3, 11).tolist()}
+        indicator_parameters['BollingerBandsIndicator'] = {'length': space, 'mult': get_logspace(1.5, 3, 11, float)}
+        indicator_parameters['MovingAverageConvergenceDivergenceIndicator'] = {'long': space, 'signal': space}
 
         for rule in rule_names:
             inds = []
