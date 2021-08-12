@@ -157,7 +157,7 @@ class Trainer:
         elif nbest is not None:
             return candidates[:nbest]
 
-    def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=20, nchildren=5):
+    def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=10, nchildren=3):
         def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
             ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
@@ -174,7 +174,7 @@ class Trainer:
                 return weights
             weights, inner = weights
             sigma = lr * np.exp(-decay * epoch)
-            return [weights + np.random.normal(size=weights.shape, scale=1), 
+            return [weights + np.random.normal(size=weights.shape, scale=sigma),
                     [change_weights(weights) for weights in inner]]
 
         def parallel_estimation(traders: list[trader.PairTrader]):
@@ -186,7 +186,7 @@ class Trainer:
                 job.join()
             return [results[hash(trader)] for trader in traders]
 
-        lr, decay = 1, .01
+        lr, decay = 1, .2
         min_trades = 10
         parents = [pair_trader.expert.get_weights()]
 
