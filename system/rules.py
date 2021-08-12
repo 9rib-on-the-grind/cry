@@ -260,3 +260,31 @@ class BollingerBandsUpperMidCrossoverRule(BaseCrossoverRule):
         buy, _ = self._upper_cross.update(close, upper)
         sell, _ = self._mid_cross.update(mid, close)
         return self.signal(buy, sell)
+
+
+
+class MovingAverageConvergenceDivergenceSignalLineCrossoverRule(BaseCrossoverRule):
+    name = 'MACDSignalLineCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cross = CrossoverState()
+
+    def decide(self, macd: indicators.MovingAverageConvergenceDivergenceIndicator):
+        macd, signal = macd.get_state()
+        buy, sell = self._cross.update(macd, signal)
+        return self.signal(buy, sell)
+
+
+
+class MovingAverageConvergenceDivergenceZeroCrossoverRule(BaseCrossoverRule):
+    name = 'MACDZeroCrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cross = CrossoverState()
+
+    def decide(self, macd: indicators.MovingAverageConvergenceDivergenceIndicator):
+        macd, signal = macd.get_state()
+        buy, sell = self._cross.update(macd, 0)
+        return self.signal(buy, sell)
