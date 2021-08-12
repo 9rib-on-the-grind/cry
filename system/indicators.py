@@ -89,14 +89,14 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         self.source = source
 
     def init_state(self):
-        self._up_smma = rolling.ExponentialAverage(alpha=1/self.length)
-        self._down_smma = rolling.ExponentialAverage(alpha=1/self.length)
+        self._up = rolling.ExponentialAverage(alpha=1/self.length)
+        self._down = rolling.ExponentialAverage(alpha=1/self.length)
         self._prev = 0
         for val in self._data['Init', self.source]:
             self.update(val)
 
     def get_state(self):
-        up, down = self._up_smma.get_state(), self._down_smma.get_state()
+        up, down = self._up.get_state(), self._down.get_state()
         rs = up / down if down != 0 else float('inf')
         rsi = 100 - 100 / (1 + rs)
         return rsi
@@ -109,8 +109,8 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
             diff = val - self._prev
             up = max(val - self._prev, 0)
             down = max(self._prev - val, 0)
-            self._up_smma.append(up)
-            self._down_smma.append(down)
+            self._up.append(up)
+            self._down.append(down)
             self._prev = val
 
     def get_parameters(self):
@@ -235,3 +235,42 @@ class BollingerBandsIndicator(BaseIndicator):
 
     def get_parameters(self):
         return {'length': self.length, 'mult': self.mult}
+
+
+
+class MovingAverageConvergenceDivergenceIndicator(BaseIndicator):
+    name = 'MACD'
+
+    def __init__(self, long: int, signal: int, source: str = 'Close', **kwargs):
+        super().__init__(**kwargs)
+
+        self.long = long
+        self.short = self.long // 2
+        self.signal = signal
+        self.source = source
+        if not self.signal <= self.short:
+            raise ValueError('Invalid short/long/signal period combination')
+
+    def init_state(self):
+        self._short_ema = rolling.ExponentialAverage(span=self.short)
+        self._long_ema = rolling.ExponentialAverage(span=self.long)
+        self._macd = None
+        self._signal_line = rolling.ExponentialAverage(span=self.signal)
+        for val in self._data['Init', self.source]:
+            self.update(val)
+
+    def get_state(self):
+        return self._macd, self._signal_line.get_state()
+
+    def update(self, val: float = None):
+        initialization = (val is not None)
+        val = val if initialization else self._data[self.source]
+        if not self.is_updated() or initialization:
+            self.update_hash = self._data.update_hash
+            self._short_ema.append(val)
+            self._long_ema.append(val)
+            self._macd = self._short_ema.get_state() - self._long_ema.get_state()
+            self._signal_line.append(self._macd)
+
+    def get_parameters(self):
+        return {'long': self.long, 'signal': self.signal, 'source': self.source}
