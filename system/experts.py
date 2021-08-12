@@ -159,7 +159,7 @@ class RuleExpert(BaseExpert):
         else:
             rule_name = f'{self._rule.name}, {self._rule.get_parameters()}'
             inds_names = f'{str([(ind.name, ind.get_parameters()) for ind in self._indicators])}'
-            ntrades = f'{self._estimated_ntrades:.2f}' if self._estimated_ntrades is not None else 'unknown'
+            ntrades = f'{self._estimated_ntrades:>5} trades' if self._estimated_ntrades is not None else 'unknown'
             profit = f'{self._estimated_profit:.2f} %' if self._estimated_profit is not None else 'unknown'
             name = f'{rule_name:<80} {inds_names:<100} {ntrades:>10} {profit:>10}'
         print(' ' * indentation + name)
