@@ -51,10 +51,14 @@ class Trainer:
             pair_expert = experts.PairExpert(base, quote)
             timeframe_lst = []
             for timeframe in timeframes:
-                candidates = [expert for rule in self.rule_names
-                                     for expert in config.get_experts_from_searchspace(timeframe, rule)]
-                print(f'searching {pair} {timeframe:>5}{len(candidates):>10} candidates')
-                # self.estimate_experts(candidates, pair, timeframe)
+                candidates = []
+
+                for rule in self.rule_names:
+                    new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
+                    print(f'searching   {rule:<60} {len(new):>5} candidates')
+                    self.estimate_experts(new, pair, timeframe)
+                    # candidates += self.best_rule_experts(new, nbest=10)
+                    candidates += new
 
                 timeframe_expert = experts.TimeFrameExpert(timeframe)
                 timeframe_expert.set_experts(candidates)
@@ -67,14 +71,14 @@ class Trainer:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
         # self.trim_bad_experts(pair_expert, trashold=.2)
+        pair_expert.show(overview=False)
         pair_expert.show()
-        raise SystemExit()
         config.serialize_expert_to_json(expert=pair_expert)
 
     def estimate_experts(self, experts: list[experts.RuleExpert],
                                pair: str,
                                timeframe: str):
-        ndays = {'1d': 45, '4h': 180, '1h': 90, '15m': 30, '1m': 2}
+        ndays = {'1d': 300, '4h': 180, '1h': 90, '15m': 30, '1m': 3}
         for expert in experts:
             if expert._estimated_profit is None:
                 pair_trader = self.construct_pair_trader_from_rule_expert(expert, pair, timeframe)
