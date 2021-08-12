@@ -1,6 +1,7 @@
 import json
 import collections
 from itertools import product
+from pprint import pprint
 
 import numpy as np
 
@@ -31,13 +32,21 @@ def create_searchspace_config():
     nested_dict = lambda: collections.defaultdict(nested_dict)
     data = collections.defaultdict(nested_dict)
 
+
+    def get_logspace(first, last, num, dtype=int):
+        start = np.log10(first)
+        stop = np.log10(last)
+        space = list(sorted(set(np.logspace(start, stop, num, dtype=dtype))))
+        return list(map(dtype, space))
+
     ranges = {
-        '1m': [10, 20, 30, 60, 120, 180],
-        '15m': [8, 12, 24, 48, 96],
-        '1h': [6, 12, 24, 48, 72, 168],
-        '4h': [6, 12, 18, 30, 42],
-        '1d': [7, 14, 30, 90, 182, 365]
+        '1m': get_logspace(10, 360, 25),
+        '15m': get_logspace(8, 192, 25),
+        '1h': get_logspace(6, 168, 25),
+        '4h': get_logspace(6, 180, 25),
+        '1d': get_logspace(7, 365, 25),
     }
+    patience = get_logspace(1, 50, 11)
 
     indicator_names = [
         'PriceIndicator',
@@ -79,7 +88,7 @@ def create_searchspace_config():
         space = ranges[timeframe]
         timeframe = data[timeframe]
 
-        rule_parameters = {rule: {'patience': space} for rule in rule_names}
+        rule_parameters = {rule: {'patience': patience} for rule in rule_names}
         rule_parameters['RelativeStrengthIndexTrasholdRule'] |=  {
             'lower': list(range(20, 45, 10)),
             'upper': list(range(60, 85, 10)),
