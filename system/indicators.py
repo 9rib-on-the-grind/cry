@@ -79,6 +79,35 @@ class MovingAverageIndicator(BaseIndicator):
 
 
 
+class ExponentialMovingAverageIndicator(BaseIndicator):
+    name = 'EMA'
+
+    def __init__(self, length: int, source: str = 'Close', **kwargs):
+        super().__init__(**kwargs)
+
+        self.length = length
+        self.source = source
+
+    def init_state(self):
+        self._ema = rolling.ExponentialAverage(span=self.length)
+        for val in self._data['Init', self.source]:
+            self.update(val)
+
+    def get_state(self):
+        return self._ema.get_state()
+            
+    def update(self, val: float = None):
+        initialization = (val is not None)
+        val = val if initialization else self._data[self.source]
+        if not self.is_updated() or initialization:
+            self.update_hash = self._data.update_hash
+            self._ema.append(val)
+
+    def get_parameters(self):
+        return {'length': self.length, 'source': self.source}
+
+
+
 class RelativeStrengthIndexIndicator(BaseIndicator):
     name = 'RSI'
 
