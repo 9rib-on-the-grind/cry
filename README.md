@@ -1,4 +1,4 @@
-# crypto_trader
+# CRY
 
 ## program architecture  
 ![program architecture](./resources/global_architecture.png)  
