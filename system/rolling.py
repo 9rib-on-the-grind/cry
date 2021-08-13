@@ -40,7 +40,7 @@ class TripleExponentialAverage(BaseRollingWindow):
     def __init__(self, alpha: float = None, span: float = None):
         super().__init__(enqueueing=False)
         self._alpha = alpha or 2 / (span + 1)
-        self._exp_avg = [ExponentialAverage(self._alpha) for _ in range(3)]
+        self._exp_avg = [ExponentialAverage(alpha=self._alpha) for _ in range(3)]
 
     def append(self, val: float):
         for avg in self._exp_avg:
