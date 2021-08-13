@@ -49,22 +49,33 @@ class BaseExpert:
 
     def get_parameters(self):
         raise NotImplementedError()
-    
+
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
         return estimations @ self._weights
-    
+
     def update(self):
         for expert in self._inner_experts:
             expert.update()
 
     def show(self, indentation=0, overview=True):
-        print(' ' * indentation + self.name)
-        if overview and hasattr(self, 'summary'):
-            self.summary(indentation + 10)
+        total = self.count_total_inner_experts()
+        if overview:
+            print(f'{" " * indentation} {total:>5}] {self.name}')
+            if not isinstance(self, RuleClassExpert):
+                for expert in self._inner_experts:
+                    expert.show(indentation + 10, overview=overview)
+            return total
         else:
+            print(f'{" " * indentation} {total:>5}] {self.name}')
             for expert in self._inner_experts:
                 expert.show(indentation + 10, overview=overview)
+
+    def count_total_inner_experts(self):
+        if hasattr(self, '_inner_experts'):
+            return sum(expert.count_total_inner_experts() for expert in self._inner_experts)
+        else:
+            return 1
 
 
 
@@ -79,7 +90,8 @@ class PairExpert(BaseExpert):
     def __init__(self, base: str, quote: str):
         super().__init__()
         self.base, self.quote = base, quote
-        self.name = f'PairExpert [{base}/{quote}]'
+        self.pair = f'{base}/{quote}'
+        self.name = f'PairExpert [{self.pair}]'
 
     def set_data(self, data: data.DataMaintainer):
         for expert in self._inner_experts:
@@ -160,13 +172,13 @@ class RuleExpert(BaseExpert):
         for indicator in self._indicators:
             indicator.update()
 
-    def show(self, indentation=10, overview=True):
+    def show(self, indentation=0, overview=True):
         if overview:
-            name = self.name
+            info = self.name
         else:
             rule_name = f'{self._rule.name}, {self._rule.get_parameters()}'
             inds_names = f'{str([(ind.name, ind.get_parameters()) for ind in self._indicators])}'
             ntrades = f'{self._estimated_ntrades:>5} trades' if self._estimated_ntrades is not None else 'unknown'
             profit = f'{self._estimated_profit:.2f} %' if self._estimated_profit is not None else 'unknown'
-            name = f'{rule_name:<80} {inds_names:<100} {ntrades:>10} {profit:>10}'
-        print(' ' * indentation + name)
+            info = f'{rule_name:<80} {inds_names:<100} {ntrades:>10} {profit:>10}'
+        print(f'{" " * indentation} {info}')
