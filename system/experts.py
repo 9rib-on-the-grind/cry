@@ -24,7 +24,8 @@ class BaseExpert:
         self._inner_experts = experts
 
     def set_data(self, data: data.DataMaintainer):
-        raise NotImplementedError()
+        for expert in self._inner_experts:
+            expert.set_data(data)
 
     def set_weights(self, weights: list['weights', list['inner weights']] = None):
         if hasattr(self, '_inner_experts'):
