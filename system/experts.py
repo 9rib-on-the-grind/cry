@@ -101,24 +101,30 @@ class TimeFrameExpert(BaseExpert):
         self.timeframe = timeframe
         self.name = f'TimeFrameExpert [{timeframe}]'
 
-    def set_data(self, data: data.DataMaintainer):
-        for expert in self._inner_experts:
-            expert.set_data(data)
-
     def get_parameters(self):
         return {'timeframe': self.timeframe}
 
-    def summary(self, indentation):
-        count = collections.Counter(expert.name for expert in self._inner_experts)
-        count['Total'] = len(self._inner_experts)
-        for name, count in count.items():
-            print(f'{" " * indentation}{count:>5} {name}')
 
+
+class RuleClassExpert(BaseExpert):
+    """Expert class for handling specific trading rule.
+
+    Args:
+        rule: String. Name of the rule (Example: 'MovingAverageCrossoverRule').
+    """
+
+    def __init__(self, rule: str):
+        super().__init__()
+        self.rule = rule
+        self.name = f'RuleClassExpert [{rule}]'
+
+    def get_parameters(self):
+        return {'rule': self.rule}
 
 
 
 class RuleExpert(BaseExpert):
-    """Expert class for handling specific trading rule.
+    """Expert class for handling specific trading rule with specific parameters.
 
     Args:
         _rule: BaseRule. Trading rule that applies to indicators.
