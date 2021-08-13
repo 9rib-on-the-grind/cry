@@ -5,13 +5,13 @@ from decision import Decision
 
 class CrossoverState:
     """Helping class for tracking relative position between two lines.
-    This class tracks which of two line is dominating (higher) and 
+    This class tracks which of two line is dominating (higher) and
     how many steps ago they changed dominance (crossed).
     """
 
     def __init__(self):
         self._a = self._b = 0
-    
+
     def update(self, a: float, b: float):
         """Update relative positions of two lines, return a and b dominance."""
         if a > b:
@@ -30,7 +30,7 @@ class DirectionState:
     def __init__(self):
         self._length = 1
         self._dir = 0
-    
+
     def update(self, change: float):
         if change > 0 and self._dir > 0 or change < 0 and self._dir < 0:
             self._length += 1
@@ -43,7 +43,7 @@ class DirectionState:
 
 class BaseRule:
     name = 'Base Rule'
-    
+
     def __init__(self, patience: int = 1):
         self._state = None
         self._patience = patience
@@ -54,7 +54,7 @@ class BaseRule:
 
     def update(self):
         raise NotImplementedError()
-    
+
     def decide(self):
         raise NotImplementedError()
 
@@ -105,11 +105,11 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
         super().__init__(**kwargs)
         self._cross = CrossoverState()
 
-    def compatible(self, slow: indicators.MovingAverageIndicator, 
+    def compatible(self, slow: indicators.MovingAverageIndicator,
                          fast: indicators.MovingAverageIndicator):
         return slow.length > fast.length
 
-    def decide(self, slow: indicators.MovingAverageIndicator, 
+    def decide(self, slow: indicators.MovingAverageIndicator,
                      fast: indicators.MovingAverageIndicator):
         buy, sell = self._cross.update(fast.get_state(), slow.get_state())
         return self.signal(buy, sell)
@@ -123,11 +123,11 @@ class ExponentialMovingAverageCrossoverRule(BaseCrossoverRule):
         super().__init__(**kwargs)
         self._cross = CrossoverState()
 
-    def compatible(self, slow: indicators.ExponentialMovingAverageIndicator, 
+    def compatible(self, slow: indicators.ExponentialMovingAverageIndicator,
                          fast: indicators.ExponentialMovingAverageIndicator):
         return slow.length > fast.length
 
-    def decide(self, slow: indicators.ExponentialMovingAverageIndicator, 
+    def decide(self, slow: indicators.ExponentialMovingAverageIndicator,
                      fast: indicators.ExponentialMovingAverageIndicator):
         buy, sell = self._cross.update(fast.get_state(), slow.get_state())
         return self.signal(buy, sell)
@@ -149,8 +149,8 @@ class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
         return self.signal(buy, sell, instant=False)
 
     def get_parameters(self):
-        return {'lower': self._lower, 
-                'upper': self._upper, 
+        return {'lower': self._lower,
+                'upper': self._upper,
                 'patience': self._patience}
 
 

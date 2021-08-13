@@ -27,17 +27,16 @@ def create_searchspace_config():
         }
     """
 
-    cfg_file = open('searchspace.json', 'w')
-
-    nested_dict = lambda: collections.defaultdict(nested_dict)
-    data = collections.defaultdict(nested_dict)
-
-
     def get_logspace(first, last, num, dtype=int):
         start = np.log10(first)
         stop = np.log10(last)
         space = list(sorted(set(np.logspace(start, stop, num, dtype=dtype))))
         return list(map(dtype, space))
+
+    cfg_file = open('searchspace.json', 'w')
+
+    nested_dict = lambda: collections.defaultdict(nested_dict)
+    data = collections.defaultdict(nested_dict)
 
     ranges = {
         '1m': get_logspace(10, 360, 25),
@@ -127,11 +126,11 @@ def get_experts_from_searchspace(timeframe: str,
         res = []
         for rule_params in product(*rule_parameters.values()):
             rule_kwargs = {key: val for key, val in zip(list(rule_parameters), rule_params)}
-            
+
             indicator_combinations = [product(*ind.values()) for ind in indicator_parameters]
             for inds_params in product(*indicator_combinations):
                 lst = []
-                for cls_name, (attrs, params) in zip(indicator_cls_names, 
+                for cls_name, (attrs, params) in zip(indicator_cls_names,
                                                      zip((param.keys() for param in indicator_parameters), inds_params)):
                     indicator_kwargs = {attr: val for attr, val in zip(attrs, params)}
                     try:
@@ -179,7 +178,9 @@ def serialize_expert_to_json(filename: str = 'expert.json',
         state = {}
         state['name'] = expert.__class__.__name__
         state['parameters'] = expert.get_parameters()
-        if isinstance(expert, experts.RuleExpert):
+        if hasattr(expert, '_inner_experts'):
+            state['inner experts'] = [get_hierarchy(exp) for exp in expert._inner_experts]
+        else:
             rule, indicators = expert._rule, expert._indicators
             rule = {'name': rule.__class__.__name__, 'parameters': rule.get_parameters()}
             indicators = [{'name': indicator.__class__.__name__,
@@ -189,8 +190,6 @@ def serialize_expert_to_json(filename: str = 'expert.json',
             state['estimations'] = {'profit': expert._estimated_profit,
                                     'ntrades': expert._estimated_ntrades}
 
-        else:
-            state['inner experts'] = [get_hierarchy(exp) for exp in expert._inner_experts]
         return state
 
     hierarchy = get_hierarchy(expert)

@@ -66,7 +66,7 @@ class MovingAverageIndicator(BaseIndicator):
 
     def get_state(self):
         return self._sma.get_state()
-            
+
     def update(self, val: float = None):
         initialization = (val is not None)
         val = val if initialization else self._data[self.source]
@@ -95,7 +95,7 @@ class ExponentialMovingAverageIndicator(BaseIndicator):
 
     def get_state(self):
         return self._ema.get_state()
-            
+
     def update(self, val: float = None):
         initialization = (val is not None)
         val = val if initialization else self._data[self.source]
@@ -129,7 +129,7 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
         rs = up / down if down != 0 else float('inf')
         rsi = 100 - 100 / (1 + rs)
         return rsi
-            
+
     def update(self, val: float = None):
         initialization = (val is not None)
         val = val if initialization else self._data[self.source]
@@ -165,7 +165,7 @@ class TripleExponentialIndicator(BaseIndicator):
 
     def get_state(self):
         return 100 * 100 * (self._tema.get_state() - self._prev) / self._prev
-            
+
     def update(self, val: float = None):
         initialization = (val is not None)
         val = val if initialization else self._data[self.source]

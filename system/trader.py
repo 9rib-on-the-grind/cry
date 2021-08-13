@@ -47,7 +47,7 @@ class PairTrader(BaseTrader):
             data: Dictionary that maps timeframe name to new candlestick
             (Example: '1h' -> [...])
         """
-        
+
         for timeframe, data in data.items():
             self.data[timeframe].update(data)
         self.expert.update()
