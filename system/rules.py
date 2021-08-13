@@ -116,6 +116,24 @@ class MovingAverageCrossoverRule(BaseCrossoverRule):
 
 
 
+class ExponentialMovingAverageCrossoverRule(BaseCrossoverRule):
+    name = 'EMACrossover'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cross = CrossoverState()
+
+    def compatible(self, slow: indicators.ExponentialMovingAverageIndicator, 
+                         fast: indicators.ExponentialMovingAverageIndicator):
+        return slow.length > fast.length
+
+    def decide(self, slow: indicators.ExponentialMovingAverageIndicator, 
+                     fast: indicators.ExponentialMovingAverageIndicator):
+        buy, sell = self._cross.update(fast.get_state(), slow.get_state())
+        return self.signal(buy, sell)
+
+
+
 class RelativeStrengthIndexTrasholdRule(BaseTrasholdRule):
     name = 'RSITrashold'
 
@@ -273,18 +291,4 @@ class MovingAverageConvergenceDivergenceSignalLineCrossoverRule(BaseCrossoverRul
     def decide(self, macd: indicators.MovingAverageConvergenceDivergenceIndicator):
         macd, signal = macd.get_state()
         buy, sell = self._cross.update(macd, signal)
-        return self.signal(buy, sell)
-
-
-
-class MovingAverageConvergenceDivergenceZeroCrossoverRule(BaseCrossoverRule):
-    name = 'MACDZeroCrossover'
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._cross = CrossoverState()
-
-    def decide(self, macd: indicators.MovingAverageConvergenceDivergenceIndicator):
-        macd, signal = macd.get_state()
-        buy, sell = self._cross.update(macd, 0)
         return self.signal(buy, sell)

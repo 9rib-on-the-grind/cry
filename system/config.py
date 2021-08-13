@@ -51,6 +51,7 @@ def create_searchspace_config():
     indicator_names = [
         'PriceIndicator',
         'MovingAverageIndicator',
+        'ExponentialMovingAverageIndicator',
         'RelativeStrengthIndexIndicator',
         'TripleExponentialIndicator',
         'IchimokuKinkoHyoIndicator',
@@ -60,6 +61,7 @@ def create_searchspace_config():
 
     rule_names = [
         'MovingAverageCrossoverRule',
+        'ExponentialMovingAverageCrossoverRule',
         'RelativeStrengthIndexTrasholdRule',
         'TripleExponentialDirectionChangeRule',
         'IchimokuKinkoHyoTenkanKijunCrossoverRule',
@@ -70,11 +72,11 @@ def create_searchspace_config():
         'BollingerBandsUpperMidCrossoverRule',
         'BollingerBandsLowerUpperCrossoverRule',
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
-        'MovingAverageConvergenceDivergenceZeroCrossoverRule',
     ]
 
     rule_indicators  = {
         'MovingAverageCrossoverRule': ['MovingAverageIndicator'] * 2,
+        'ExponentialMovingAverageCrossoverRule': ['ExponentialMovingAverageIndicator'] * 2,
         'RelativeStrengthIndexTrasholdRule': ['RelativeStrengthIndexIndicator'],
         'TripleExponentialDirectionChangeRule': ['TripleExponentialIndicator'],
         'IchimokuKinkoHyoTenkanKijunCrossoverRule': ['IchimokuKinkoHyoIndicator'],
@@ -85,7 +87,6 @@ def create_searchspace_config():
         'BollingerBandsUpperMidCrossoverRule': ['BollingerBandsIndicator', 'PriceIndicator'],
         'BollingerBandsLowerUpperCrossoverRule': ['BollingerBandsIndicator', 'PriceIndicator'],
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule': ['MovingAverageConvergenceDivergenceIndicator'],
-        'MovingAverageConvergenceDivergenceZeroCrossoverRule': ['MovingAverageConvergenceDivergenceIndicator'],
     }
 
     for timeframe in ranges:

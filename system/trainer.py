@@ -22,6 +22,7 @@ import config
 class Trainer:
     rule_names = [
         'MovingAverageCrossoverRule',
+        'ExponentialMovingAverageCrossoverRule',
         'RelativeStrengthIndexTrasholdRule',
         'TripleExponentialDirectionChangeRule',
         'IchimokuKinkoHyoTenkanKijunCrossoverRule',
@@ -32,7 +33,6 @@ class Trainer:
         'BollingerBandsLowerMidCrossoverRule',
         'BollingerBandsUpperMidCrossoverRule',
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
-        'MovingAverageConvergenceDivergenceZeroCrossoverRule',
     ]
 
     timeframes = ['1d', '4h', '1h', '15m', '1m']
