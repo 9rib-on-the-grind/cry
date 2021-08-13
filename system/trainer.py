@@ -54,7 +54,7 @@ class Trainer:
             timeframe_lst = []
             for timeframe in timeframes:
                 rule_cls_lst = []
-                print(f'searching timeframe [{timeframe}]')
+                print(f'load timeframe [{timeframe}]')
 
                 for rule in self.rule_names:
                     new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
@@ -69,26 +69,24 @@ class Trainer:
 
             pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
-            # self.trim_bad_experts(pair_expert, nbest=999)
+            self.trim_bad_experts(pair_expert, nbest=99999)
             pair_expert.show()
             config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
 
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        # self.trim_bad_experts(pair_expert, min_trades=5, nbest=3)
-        pair_expert.show(overview=False)
-        pair_expert.show()
+        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.15)
         config.serialize_expert_to_json(expert=pair_expert)
-        raise SystemExit()
 
-    def trim_bad_experts(self, expert: experts.BaseExpert, **kwargs):
+    def trim_bad_experts(self, expert: experts.BaseExpert, *, indentation: int = 0, **kwargs):
+        print(f'{" " * indentation}trim {expert.name}')
         if isinstance(expert, experts.RuleClassExpert):
             expert._inner_experts = self.best_rule_experts(expert._inner_experts, rule=expert.rule, **kwargs)
         else:
             kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
             for expert in expert._inner_experts:
-                self.trim_bad_experts(expert, **kwargs)
+                self.trim_bad_experts(expert, indentation=indentation+10, **kwargs)
 
     def best_rule_experts(self, candidates: list[experts.RuleExpert],
                                 min_trades: int = None, *,
@@ -111,11 +109,11 @@ class Trainer:
                               pair: str,
                               timeframe: str,
                               **kwargs):
-        ndays = {'1d': 300, '4h': 180, '1h': 90, '15m': 30, '1m': 3}
+        ndays = {'1d': 180, '4h': 180, '1h': 90, '15m': 30, '1m': 3}
         if expert._estimated_profit is None:
             pair_trader = trader.PairTrader(pair)
             pair_expert = self.cast_to_pair_expert(expert, timeframe=timeframe, **kwargs)
-            pair_expert.set_weights()
+            pair_expert.set_weights(recursive=True)
             pair_trader.set_expert(pair_expert)
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
             expert._estimated_profit = profit / ndays[timeframe]
@@ -134,6 +132,7 @@ class Trainer:
                 temp = upcast_cls(*args)
                 temp.set_experts([expert])
                 expert = temp
+                expert.set_weights()
         return expert
 
     def simulate_pair_trader(self, pair_trader: trader.PairTrader, ndays: int, *, display: bool = False):
@@ -175,25 +174,14 @@ class Trainer:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
 
-    def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=10, nchildren=3):
+    def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs=15, population=10, nchildren=3, indentation=0, **kwargs):
         def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
             ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
 
-        def construct_pair_traider_from_weights(weights: list['weights', list['inner weights']]) -> trader.PairTrader:
-            pair_trader = trader.PairTrader('BTC/USDT')
-            expert = config.deserialize_expert_from_json()
-            expert.set_weights(weights)
-            pair_trader.set_expert(expert)
-            return pair_trader
-
-        def change_weights(weights: list['weights', list['inner weights']]):
-            if not weights:
-                return weights
-            weights, inner = weights
+        def change_weights(weights: np.array):
             sigma = lr * np.exp(-decay * epoch)
-            return [weights + np.random.normal(size=weights.shape, scale=sigma),
-                    [change_weights(weights) for weights in inner]]
+            return weights + np.random.normal(size=weights.shape, scale=sigma)
 
         def parallel_estimation(traders: list[trader.PairTrader]):
             results = mp.Manager().dict()
@@ -204,32 +192,44 @@ class Trainer:
                 job.join()
             return [results[hash(trader)] for trader in traders]
 
-        lr, decay = 1, .2
-        min_trades = 10
-        parents = [pair_trader.expert.get_weights()]
+        kwargs |= {attr: getattr(expert, attr) for attr in ('quote', 'base', 'timeframe', 'rule') if hasattr(expert, attr)}
+        if not isinstance(expert, experts.RuleClassExpert):
+            for exp in expert._inner_experts:
+                self.fit_weights(exp, indentation=indentation+10, **kwargs)
 
-        for epoch in range(epochs):
-            print(f'[ {epoch+1:>3} / {epochs:<3} ]')
-            children = []
-            for weights in parents:
-                children += [change_weights(weights) for _ in range(nchildren)]
-            parents += children
-            traders = [construct_pair_traider_from_weights(weights) for weights in parents]
+        if len(expert._inner_experts) > 1:
+            lr, decay = 1, .2
+            min_trades = 10
+            parents = [expert.get_weights()]
 
-            estimations = parallel_estimation(traders)
-            for pair_trader, profit in zip(traders, estimations):
-                pair_trader.profit = profit
-            traders = heapq.nlargest(population, traders, key=lambda x: x.profit)
-            parents = [pair_trader.expert.get_weights() for pair_trader in traders]
+            print(' ' * indentation + f'{expert.name}')
+            for epoch in range(epochs):
+                children = []
+                for weights in parents:
+                    children += [change_weights(weights) for _ in range(nchildren)]
+                parents += children
 
-            best = traders[0]
-            print(f'profit: {best.profit:.2f} %')
+                traders = []
+                for weights in parents:
+                    exp = deepcopy(expert)
+                    exp.set_weights(weights)
+                    exp = self.cast_to_pair_expert(exp, **kwargs)
+                    tr = trader.PairTrader(pair)
+                    tr.set_expert(exp)
+                    traders.append(tr)
 
-        found_trader = trader.PairTrader('BTC/USDT')
-        expert = config.deserialize_expert_from_json()
-        expert.set_weights(best.expert.get_weights())
-        found_trader.set_expert(expert)
-        self.simulate_pair_trader(found_trader, ndays=300, display=True)
+                estimations = parallel_estimation(traders)
+
+                results = zip(estimations, parents)
+                results = heapq.nlargest(population, results, key=lambda x: x[0])
+                parents = [weights for profit, weights in results]
+
+                best_profit, best_weights = max(results, key=lambda x: x[0])
+                if expert._estimated_profit is None or expert._estimated_profit < best_profit:
+                    expert._estimated_profit = best_profit
+                    expert.set_weights(best_weights)
+
+                print(' ' * (indentation + 100) + f'[ {epoch+1:>3} / {epochs:<3} ] profit: {best_profit:.2f} %')
 
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
         def config_axs(*axs):
@@ -269,10 +269,12 @@ if __name__ == '__main__':
 
     trainer.construct_system()
 
-    pair_trader = trader.PairTrader('BTC/USDT')
     expert = config.deserialize_expert_from_json()
-    expert.show()
-    expert.set_weights()
-    pair_trader.set_expert(expert)
+    expert.show(overview=False)
+    expert.set_weights(recursive=True)
 
-    trainer.fit_weights(pair_trader)
+    trainer.fit_weights(expert)
+
+    pair_trader = trader.PairTrader('BTC/USDT')
+    pair_trader.set_expert(expert)
+    trainer.simulate_pair_trader(pair_trader, 360, display=True)

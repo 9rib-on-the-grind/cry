@@ -27,21 +27,19 @@ class BaseExpert:
         for expert in self._inner_experts:
             expert.set_data(data)
 
-    def set_weights(self, weights: list['weights', list['inner weights']] = None):
+    def set_weights(self, weights: np.array = None, recursive=False):
         if hasattr(self, '_inner_experts'):
             if weights is not None:
-                self._weights, inner = weights
+                self._weights = weights
             else:
-                self._weights = np.random.normal(size=len(self._inner_experts))
-                inner = [None] * len(self._inner_experts)
-            for expert, weights in zip(self._inner_experts, inner):
-                expert.set_weights(weights)
+                self._weights = np.ones(len(self._inner_experts))
+            if recursive:
+                for expert in self._inner_experts:
+                    expert.set_weights(None, recursive=True)
             self.normalize_weights()
 
-    def get_weights(self) -> list['weights', list['inner weights']]:
-        inner_weights = [expert.get_weights() for expert in self._inner_experts
-                                              if hasattr(expert, '_inner_experts')]
-        return [self._original_weights, inner_weights]
+    def get_weights(self):
+        return self._original_weights
 
     def normalize_weights(self):
         if self._weights.size > 0:
