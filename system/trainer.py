@@ -48,58 +48,93 @@ class Trainer:
 
         if reestimate:
             config.create_searchspace_config()
+
             pair = 'BTC/USDT'
             base, quote = pair.split('/')
-            pair_expert = experts.PairExpert(base, quote)
             timeframe_lst = []
             for timeframe in timeframes:
-                candidates = []
+                rule_cls_lst = []
+                print(f'searching timeframe [{timeframe}]')
 
                 for rule in self.rule_names:
                     new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
-                    print(f'searching   {rule:<60} {len(new):>5} candidates')
-                    self.estimate_experts(new, pair, timeframe)
-                    # candidates += self.best_rule_experts(new, nbest=10)
-                    candidates += new
+                    print(' ' * 5 + f'{rule:<60} {len(new):>5} candidates')
+                    rule_cls_expert = experts.RuleClassExpert(rule)
+                    rule_cls_expert.set_experts(new)
+                    rule_cls_lst.append(rule_cls_expert)
 
                 timeframe_expert = experts.TimeFrameExpert(timeframe)
-                timeframe_expert.set_experts(candidates)
+                timeframe_expert.set_experts(rule_cls_lst)
                 timeframe_lst.append(timeframe_expert)
 
+            pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
+            # self.trim_bad_experts(pair_expert, nbest=999)
+            pair_expert.show()
             config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
 
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        # self.trim_bad_experts(pair_expert, trashold=.2)
+        # self.trim_bad_experts(pair_expert, min_trades=5, nbest=3)
         pair_expert.show(overview=False)
         pair_expert.show()
         config.serialize_expert_to_json(expert=pair_expert)
+        raise SystemExit()
 
-    def estimate_experts(self, experts: list[experts.RuleExpert],
-                               pair: str,
-                               timeframe: str):
+    def trim_bad_experts(self, expert: experts.BaseExpert, **kwargs):
+        if isinstance(expert, experts.RuleClassExpert):
+            expert._inner_experts = self.best_rule_experts(expert._inner_experts, rule=expert.rule, **kwargs)
+        else:
+            kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
+            for expert in expert._inner_experts:
+                self.trim_bad_experts(expert, **kwargs)
+
+    def best_rule_experts(self, candidates: list[experts.RuleExpert],
+                                min_trades: int = None, *,
+                                trashold: float = None,
+                                nbest: int = None,
+                                percent: 'float (0, 1)' = None,
+                                **kwargs) -> list[experts.RuleExpert]:
+        nbest = nbest if percent is None else int(percent * len(candidates))
+        for expert in candidates:
+            self.estimate_expert(expert, **kwargs)
+        if min_trades is not None:
+            candidates = [expert for expert in candidates if expert._estimated_ntrades >= min_trades]
+        candidates.sort(reverse=True, key=lambda x: x._estimated_profit)
+        if trashold is not None:
+            return [expert for expert in candidates if expert._estimated_profit > trashold]
+        elif nbest is not None:
+            return candidates[:nbest]
+
+    def estimate_expert(self, expert: experts.RuleExpert,
+                              pair: str,
+                              timeframe: str,
+                              **kwargs):
         ndays = {'1d': 300, '4h': 180, '1h': 90, '15m': 30, '1m': 3}
-        for expert in experts:
-            if expert._estimated_profit is None:
-                pair_trader = self.construct_pair_trader_from_rule_expert(expert, pair, timeframe)
-                profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
-                # profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=360, display=True)
-                expert._estimated_profit = profit / ndays[timeframe]
-                expert._estimated_ntrades = ntrades
+        if expert._estimated_profit is None:
+            pair_trader = trader.PairTrader(pair)
+            pair_expert = self.cast_to_pair_expert(expert, timeframe=timeframe, **kwargs)
+            pair_expert.set_weights()
+            pair_trader.set_expert(pair_expert)
+            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
+            expert._estimated_profit = profit / ndays[timeframe]
+            expert._estimated_ntrades = ntrades
 
-    def construct_pair_trader_from_rule_expert(self, rule_expert: experts.RuleExpert,
-                                                     pair: str, 
-                                                     timeframe: str) -> trader.PairTrader:
-        pair_trader = trader.PairTrader(pair)
-        pair_expert = experts.PairExpert(*pair.split('/'))
-        timeframe_expert = experts.TimeFrameExpert(timeframe)
-        timeframe_expert.set_experts([rule_expert])
-        pair_expert.set_experts([timeframe_expert])
-        pair_expert.set_weights()
-        pair_trader.set_expert(pair_expert)
-        return pair_trader
+    def cast_to_pair_expert(self, expert: experts.BaseExpert,
+                                  quote: str,
+                                  base: str,
+                                  timeframe: str = None,
+                                  rule: str = None) -> experts.PairExpert:
+        for rule_cls, upcast_cls, args in zip([experts.RuleExpert, experts.RuleClassExpert, experts.TimeFrameExpert],
+                                              [experts.RuleClassExpert, experts.TimeFrameExpert, experts.PairExpert],
+                                              [(rule,), (timeframe,), (quote, base)]):
+            if isinstance(expert, rule_cls):
+                assert None not in args, f'No arguments for {upcast_cls}'
+                temp = upcast_cls(*args)
+                temp.set_experts([expert])
+                expert = temp
+        return expert
 
     def simulate_pair_trader(self, pair_trader: trader.PairTrader, ndays: int, *, display: bool = False):
         def load_history(pair: str, timeframe: str) -> pd.DataFrame:
@@ -139,25 +174,6 @@ class Trainer:
         if display:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
-
-    def trim_bad_experts(self, expert: experts.BaseExpert, **kwargs):
-        if isinstance(expert, experts.TimeFrameExpert):
-            expert._inner_experts = self.best_rule_experts(expert._inner_experts, **kwargs)
-        else:
-            for expert in expert._inner_experts:
-                self.trim_bad_experts(expert, **kwargs)
-
-    def best_rule_experts(self, candidates: list[experts.RuleExpert], *,
-                                trashold: float = None,
-                                nbest: int = None,
-                                percent: 'float (0, 1)' = None) -> list[experts.RuleExpert]:
-        nbest = nbest if percent is None else int(percent * len(candidates))
-        candidates = [expert for expert in candidates if expert._estimated_ntrades > 5]
-        candidates.sort(reverse=True, key=lambda x: x._estimated_profit)
-        if trashold is not None:
-            return [expert for expert in candidates if expert._estimated_profit > trashold]
-        elif nbest is not None:
-            return candidates[:nbest]
 
     def fit_weights(self, pair_trader: trader.PairTrader, epochs=10, population=10, nchildren=3):
         def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
