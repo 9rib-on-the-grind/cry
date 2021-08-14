@@ -83,10 +83,12 @@ class Trainer:
 
     def trim_bad_experts(self, expert: experts.BaseExpert, *, ret_dict: dict = None, verbose: bool = False, indentation: int = 0, **kwargs):
         kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
-        if isinstance(expert, experts.TimeFrameExpert):
+        if isinstance(expert, experts.RuleClassExpert):
+            expert._inner_experts = self.best_rule_experts(expert._inner_experts, rule=expert.rule, **kwargs)
+        else:
             results = mp.Manager().dict()
             kwargs |= {'verbose': verbose, 'indentation': indentation + 10}
-            jobs = [mp.Process(target=self.trim_bad_experts, 
+            jobs = [mp.Process(target=self.trim_bad_experts,
                                args=(expert,),
                                kwargs=kwargs | {'ret_dict': results}) for expert in expert._inner_experts]
             for job in jobs:
@@ -94,14 +96,8 @@ class Trainer:
             for job in jobs:
                 job.join()
             expert._inner_experts = results.values()
-        elif isinstance(expert, experts.RuleClassExpert):
-            expert._inner_experts = self.best_rule_experts(expert._inner_experts, rule=expert.rule, **kwargs)
-            if ret_dict is not None:
-                ret_dict[os.getpid()] = expert
-        else:
-            kwargs |= {'verbose': verbose, 'indentation': indentation + 10}
-            for exp in expert._inner_experts:
-                self.trim_bad_experts(exp, **kwargs)
+        if ret_dict is not None:
+            ret_dict[os.getpid()] = expert
         if verbose:
             print(f'{" " * indentation}trimmed: {expert.name}')
 
