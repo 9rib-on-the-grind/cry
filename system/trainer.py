@@ -37,13 +37,14 @@ class Trainer:
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
     ]
 
-    timeframes = ['1d', '4h', '1h', '15m', '1m']
+    timeframes = ['1d', '4h', '1h', '15m']
 
     def __init__(self):
         self.loaded_history = {}
 
     def construct_system(self):
         timeframes = self.timeframes
+        rules = self.rule_names
 
         reestimate = False
         reestimate = True
@@ -72,14 +73,29 @@ class Trainer:
             pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
             self.trim_bad_experts(pair_expert, nbest=99999, verbose=True)
-            pair_expert.show()
             config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
 
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.15)
+        self.choose_branches(pair_expert, timeframes=timeframes, rules=rules)
+        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.2)
+        # self.trim_bad_experts(pair_expert, min_trades=10, nbest=10)
+        pair_expert.show()
+        raise SystemExit()
         config.serialize_expert_to_json(expert=pair_expert)
+
+    def choose_branches(self, expert: experts.BaseExpert, *,
+                              timeframes: list[str] = None,
+                              rules: list[str] = None):
+
+        if isinstance(expert, experts.PairExpert) and timeframes is not None:
+            expert._inner_experts = [exp for exp in expert._inner_experts if exp.timeframe in timeframes]
+        if isinstance(expert, experts.TimeFrameExpert) and rules is not None:
+            expert._inner_experts = [exp for exp in expert._inner_experts if exp.rule in rules]
+        if hasattr(expert, '_inner_experts'):
+            for exp in expert._inner_experts:
+                self.choose_branches(exp, timeframes=timeframes, rules=rules)
 
     def trim_bad_experts(self, expert: experts.BaseExpert, *, ret_dict: dict = None, verbose: bool = False, indentation: int = 0, **kwargs):
         kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
@@ -122,7 +138,7 @@ class Trainer:
                               pair: str,
                               timeframe: str,
                               **kwargs):
-        ndays = {'1d': 180, '4h': 180, '1h': 90, '15m': 30, '1m': 3}
+        ndays = {'1d': 180, '4h': 120, '1h': 30, '15m': 14, '1m': 1}
         if expert._estimated_profit is None:
             pair_trader = trader.PairTrader(pair)
             pair_expert = self.cast_to_pair_expert(expert, timeframe=timeframe, **kwargs)
@@ -187,7 +203,7 @@ class Trainer:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
 
-    def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs=15, population=10, nchildren=3, indentation=0, **kwargs):
+    def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs=10, population=10, nchildren=3, indentation=0, **kwargs):
         def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
             ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
@@ -283,7 +299,6 @@ if __name__ == '__main__':
     trainer.construct_system()
 
     expert = config.deserialize_expert_from_json()
-    expert.show(overview=False)
     expert.set_weights(recursive=True)
 
     trainer.fit_weights(expert)
