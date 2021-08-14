@@ -5,6 +5,8 @@ import time
 import heapq
 from pprint import pprint
 import multiprocessing as mp
+import os
+import sys
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -69,7 +71,7 @@ class Trainer:
 
             pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
-            self.trim_bad_experts(pair_expert, nbest=99999)
+            self.trim_bad_experts(pair_expert, nbest=99999, verbose=True)
             pair_expert.show()
             config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
 
@@ -79,14 +81,29 @@ class Trainer:
         self.trim_bad_experts(pair_expert, min_trades=10, trashold=.15)
         config.serialize_expert_to_json(expert=pair_expert)
 
-    def trim_bad_experts(self, expert: experts.BaseExpert, *, indentation: int = 0, **kwargs):
-        print(f'{" " * indentation}trim {expert.name}')
-        if isinstance(expert, experts.RuleClassExpert):
+    def trim_bad_experts(self, expert: experts.BaseExpert, *, ret_dict: dict = None, verbose: bool = False, indentation: int = 0, **kwargs):
+        kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
+        if isinstance(expert, experts.TimeFrameExpert):
+            results = mp.Manager().dict()
+            kwargs |= {'verbose': verbose, 'indentation': indentation + 10}
+            jobs = [mp.Process(target=self.trim_bad_experts, 
+                               args=(expert,),
+                               kwargs=kwargs | {'ret_dict': results}) for expert in expert._inner_experts]
+            for job in jobs:
+                job.start()
+            for job in jobs:
+                job.join()
+            expert._inner_experts = results.values()
+        elif isinstance(expert, experts.RuleClassExpert):
             expert._inner_experts = self.best_rule_experts(expert._inner_experts, rule=expert.rule, **kwargs)
+            if ret_dict is not None:
+                ret_dict[os.getpid()] = expert
         else:
-            kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
-            for expert in expert._inner_experts:
-                self.trim_bad_experts(expert, indentation=indentation+10, **kwargs)
+            kwargs |= {'verbose': verbose, 'indentation': indentation + 10}
+            for exp in expert._inner_experts:
+                self.trim_bad_experts(exp, **kwargs)
+        if verbose:
+            print(f'{" " * indentation}trimmed: {expert.name}')
 
     def best_rule_experts(self, candidates: list[experts.RuleExpert],
                                 min_trades: int = None, *,
