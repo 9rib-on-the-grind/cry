@@ -218,63 +218,6 @@ class Trainer:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
 
-    def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs=10, population=10, nchildren=3, indentation=0, **kwargs):
-        def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
-            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
-            ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
-
-        def change_weights(weights: np.array):
-            sigma = lr * np.exp(-decay * epoch)
-            return weights + np.random.normal(size=weights.shape, scale=sigma)
-
-        def parallel_estimation(traders: list[trader.PairTrader]):
-            results = mp.Manager().dict()
-            jobs = [mp.Process(target=estimate_trader, args=(trader,), kwargs={'ret_dict': results}) for trader in traders]
-            for job in jobs:
-                job.start()
-            for job in jobs:
-                job.join()
-            return [results[hash(trader)] for trader in traders]
-
-        kwargs |= {attr: getattr(expert, attr) for attr in ('quote', 'base', 'timeframe', 'rule') if hasattr(expert, attr)}
-        if not isinstance(expert, experts.RuleClassExpert):
-            for exp in expert._inner_experts:
-                self.fit_weights(exp, indentation=indentation+10, **kwargs)
-
-        if len(expert._inner_experts) > 1:
-            lr, decay = 1, .2
-            min_trades = 10
-            parents = [expert.get_weights()]
-
-            print(' ' * indentation + f'{expert.name}')
-            for epoch in range(epochs):
-                children = []
-                for weights in parents:
-                    children += [change_weights(weights) for _ in range(nchildren)]
-                parents += children
-
-                traders = []
-                for weights in parents:
-                    exp = deepcopy(expert)
-                    exp.set_weights(weights)
-                    exp = self.cast_to_pair_expert(exp, **kwargs)
-                    tr = trader.PairTrader(pair)
-                    tr.set_expert(exp)
-                    traders.append(tr)
-
-                estimations = parallel_estimation(traders)
-
-                results = zip(estimations, parents)
-                results = heapq.nlargest(population, results, key=lambda x: x[0])
-                parents = [weights for profit, weights in results]
-
-                best_profit, best_weights = max(results, key=lambda x: x[0])
-                if expert._estimated_profit is None or expert._estimated_profit < best_profit:
-                    expert._estimated_profit = best_profit
-                    expert.set_weights(best_weights)
-
-                print(' ' * (indentation + 100) + f'[ {epoch+1:>3} / {epochs:<3} ] profit: {best_profit:.2f} %')
-
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
         def config_axs(*axs):
             for ax in axs:
