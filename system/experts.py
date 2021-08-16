@@ -38,6 +38,12 @@ class BaseExpert:
                     expert.set_weights(None, recursive=True)
             self.normalize_weights()
 
+    def get_signals(self):
+        if hasattr(self, '_inner_experts'):
+            return [exp.get_signals() for exp in self._inner_experts]
+        else:
+            return self._signals
+
     def get_weights(self):
         return self._original_weights
 
@@ -157,6 +163,7 @@ class RuleExpert(BaseExpert):
         raise SystemError('Do not call this method')
 
     def set_data(self, data: data.DataMaintainer):
+        self._signals = []
         for indicator in self._indicators:
             indicator.set_data(data)
 
@@ -164,7 +171,9 @@ class RuleExpert(BaseExpert):
         return {}
 
     def estimate(self):
-        return self._rule.decide(*self._indicators)
+        estimation = self._rule.decide(*self._indicators)
+        self._signals.append(estimation)
+        return estimation
 
     def update(self):
         for indicator in self._indicators:

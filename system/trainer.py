@@ -251,16 +251,20 @@ class Trainer:
 
 
 
-if __name__ == '__main__':
+def get_signals():
     trainer = Trainer()
-
     trainer.construct_system()
 
     expert = config.deserialize_expert_from_json()
     expert.set_weights(recursive=True)
 
-    trainer.fit_weights(expert)
-
-    pair_trader = trader.PairTrader('BTC/USDT')
+    pair_trader = trader.PairTrader('BTCUSDT')
     pair_trader.set_expert(expert)
-    trainer.simulate_pair_trader(pair_trader, 360, display=True)
+
+    trainer.simulate_pair_trader(pair_trader, 360, display=False)
+
+    signals = expert.get_signals()
+    signals = np.array(signals)
+    signals = np.moveaxis(signals, [0, 1, 2, 3], [1, 2, 3, 0])
+
+    return signals
