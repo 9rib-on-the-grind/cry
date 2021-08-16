@@ -37,14 +37,29 @@ class Trainer:
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
     ]
 
-    timeframes = ['1d', '4h', '1h', '15m']
+    timeframes = ['1d', '4h', '1h', '15m'] # 41   75
 
     def __init__(self):
         self.loaded_history = {}
 
     def construct_system(self):
         timeframes = self.timeframes
-        rules = self.rule_names
+
+        timeframes = ['1d', '1h']
+        rules = [                                                       #  4h    1h     15m
+            # 'MovingAverageCrossoverRule',                                    # 36%    21%    45%
+            # 'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
+            # 'RelativeStrengthIndexTrasholdRule',                             # 17%    14%   -30%
+            'TripleExponentialDirectionChangeRule',                          # 23%    62%    33%
+            'IchimokuKinkoHyoTenkanKijunCrossoverRule',                      # 48%    30%    58%
+            # 'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',                   # 28%    25%    56%
+            # 'IchimokuKinkoHyoChikouCrossoverRule',                           # 28%    -6%     5%
+            # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
+            # 'BollingerBandsLowerUpperCrossoverRule',                         # 14%    -4%     0%
+            # 'BollingerBandsLowerMidCrossoverRule',                           # 48%    35%    -1%
+            # 'BollingerBandsUpperMidCrossoverRule',                           # 22%    13%     0%
+            # 'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',     # 25%    33%     8%
+        ]
 
         reestimate = False
         reestimate = True
