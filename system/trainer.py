@@ -46,23 +46,23 @@ class Trainer:
         timeframes = self.timeframes
 
         timeframes = ['1h']
-        rules = [                                                       #  4h    1h     15m
-            # 'MovingAverageCrossoverRule',                                    # 36%    21%    45%
-            # 'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
-            # 'RelativeStrengthIndexTrasholdRule',                             # 17%    14%   -30%
-            # 'TripleExponentialDirectionChangeRule',                          # 23%    62%    33%
-            # 'IchimokuKinkoHyoTenkanKijunCrossoverRule',                      # 48%    30%    58%
-            # 'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',                   # 28%    25%    56%
-            # 'IchimokuKinkoHyoChikouCrossoverRule',                           # 28%    -6%     5%
+        rules = [                                                            #  4h    1h     15m
+            'MovingAverageCrossoverRule',                                    # 36%    21%    45%
+            'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
+            'RelativeStrengthIndexTrasholdRule',                             # 17%    14%   -30%
+            'TripleExponentialDirectionChangeRule',                          # 23%    62%    33%
+            'IchimokuKinkoHyoTenkanKijunCrossoverRule',                      # 48%    30%    58%
+            'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',                   # 28%    25%    56%
+            'IchimokuKinkoHyoChikouCrossoverRule',                           # 28%    -6%     5%
             # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
-            # 'BollingerBandsLowerUpperCrossoverRule',                         # 14%    -4%     0%
-            # 'BollingerBandsLowerMidCrossoverRule',                           # 48%    35%    -1%
-            # 'BollingerBandsUpperMidCrossoverRule',                           # 22%    13%     0%
-            # 'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',     # 25%    33%     8%
+            'BollingerBandsLowerUpperCrossoverRule',                         # 14%    -4%     0%
+            'BollingerBandsLowerMidCrossoverRule',                           # 48%    35%    -1%
+            'BollingerBandsUpperMidCrossoverRule',                           # 22%    13%     0%
+            'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',     # 25%    33%     8%
         ]
 
-        reestimate = False
         reestimate = True
+        reestimate = False
 
         if reestimate:
             config.create_searchspace_config()
@@ -94,10 +94,8 @@ class Trainer:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
         self.choose_branches(pair_expert, timeframes=timeframes, rules=rules)
-        # self.trim_bad_experts(pair_expert, min_trades=10, trashold=.2)
-        self.trim_bad_experts(pair_expert, min_trades=10, nbest=5)
-        # pair_expert.show()
-        # raise SystemExit()
+        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.3)
+        # self.trim_bad_experts(pair_expert, min_trades=10, nbest=50)
         config.serialize_expert_to_json(expert=pair_expert)
 
     def choose_branches(self, expert: experts.BaseExpert, *,
@@ -256,14 +254,9 @@ def get_signals():
     trainer.construct_system()
 
     expert = config.deserialize_expert_from_json()
-    expert.set_weights(recursive=True)
 
     pair_trader = trader.PairTrader('BTCUSDT')
     pair_trader.set_expert(expert)
+    trainer.simulate_pair_trader(pair_trader, 60)
 
-    trainer.simulate_pair_trader(pair_trader, 360, display=False)
-
-    signals = expert.get_signals()
-    signals = np.array(signals)
-
-    return pair_trader.history, signals
+    return pair_trader.history, expert.get_signals()

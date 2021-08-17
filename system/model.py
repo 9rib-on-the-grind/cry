@@ -35,7 +35,6 @@ class TimeFrameExpertLayer(keras.layers.Layer):
             keras.layers.LeakyReLU(),
 
             keras.layers.Dense(10),
-            # keras.layers.Activation('tanh'),
         ]
 
     def call(self, inputs):
@@ -60,41 +59,32 @@ class RuleClassExpertLayer(keras.layers.Layer):
             inputs = layer(inputs)
         return inputs
 
-
-def get_expert_layer(expert):
-    table = {
-        experts.PairExpert: PairExpertLayer,
-        experts.TimeFrameExpert: TimeFrameExpertLayer,
-        experts.RuleClassExpert: RuleClassExpertLayer,
-    }
-    return table[expert.__class__]()
-
-
-
 def construct_model_from_expert(expert: experts.BaseExpert, inputs=None):
     def get_inputs(shape):
         count, inner = shape
-        print(count, inner)
         if not inner:
             return [keras.Input(1) for _ in range(count)]
         else:
             return [get_inputs(inn) for inn in inner]
+
+    def get_expert_layer(expert):
+        table = {
+            experts.PairExpert: PairExpertLayer,
+            experts.TimeFrameExpert: TimeFrameExpertLayer,
+            experts.RuleClassExpert: RuleClassExpertLayer,
+        }
+        return table[expert.__class__]()
 
     inputs = inputs if inputs is not None else get_inputs(expert.get_shape())
 
     if hasattr(expert, '_inner_experts'):
         submodels = [construct_model_from_expert(exp, inp) for exp, inp in zip(expert._inner_experts, inputs)]
         results = [subm(inp) for subm, inp in zip(submodels, inputs)]
-
         concat = keras.layers.concatenate(results)
         expert_layer = get_expert_layer(expert)(concat)
-
-        model = keras.Model(inputs=inputs, outputs=expert_layer, name=expert.get_model_name())
-        return model
-
+        return keras.Model(inputs=inputs, outputs=expert_layer, name=expert.get_model_name())
     else:
         return keras.Model(inputs, inputs, name=expert.get_model_name())
-
 
 def get_conf(close, n=24):
     close = pd.Series(close)
@@ -121,17 +111,11 @@ def plot(close, true_conf=None, pred=None):
 
     if true_conf is not None:
         ax2.plot(true_conf, color='grey')
-
     if pred is not None:
         ax2.plot(pred)
 
     fig.tight_layout()
     plt.show()
-
-def to_lst(data):
-    if not isinstance(data[0], list):
-        return np.array(data)
-    return [to_lst(d) for d in data]
 
 
 
@@ -139,23 +123,14 @@ if __name__ == '__main__':
 
     data, signals = trainer.get_signals()
     expert = config.deserialize_expert_from_json()
-    expert.show(overview=False)
-    expert.show()
-    print(expert.get_shape())
 
     model = construct_model_from_expert(expert)
-    model.summary()
     keras.utils.plot_model(model, "arch.png", expand_nested=True, rankdir='LR')
+    model.summary()
+    expert.show()
 
-
-    data = [d['1h'] for d in data]
-    close = [d[4] for d in data]
-
-    signals = to_lst(signals.tolist())
-    n = 24
-    _, true_conf = get_conf(close, n)
-
-
+    close = [d[4] for d in [d['1h'] for d in data]]
+    _, true_conf = get_conf(close, 24)
 
     model.compile(
         optimizer=keras.optimizers.SGD(learning_rate=1e-3,
@@ -167,9 +142,9 @@ if __name__ == '__main__':
         x=signals,
         y=np.array(true_conf),
         validation_split=.2,
-        epochs=100,
+        epochs=50,
         batch_size=32,
-        callbacks=[keras.callbacks.ReduceLROnPlateau()],
+        callbacks=[keras.callbacks.ReduceLROnPlateau(verbose=1)],
     )
 
     pred = model.predict(signals)

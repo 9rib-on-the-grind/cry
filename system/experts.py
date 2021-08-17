@@ -16,7 +16,6 @@ class BaseExpert:
     def __init__(self):
         self.name = 'BaseExpert'
         self._inner_experts = None
-        self._weights = self._original_weights = np.array([])
         self._estimated_profit = None
         self._estimated_ntrades = None
 
@@ -27,32 +26,12 @@ class BaseExpert:
         for expert in self._inner_experts:
             expert.set_data(data)
 
-    def set_weights(self, weights: np.array = None, recursive=False):
-        if hasattr(self, '_inner_experts'):
-            if weights is not None:
-                self._weights = weights
-            else:
-                self._weights = np.ones(len(self._inner_experts))
-            if recursive:
-                for expert in self._inner_experts:
-                    expert.set_weights(None, recursive=True)
-            self.normalize_weights()
+    def update(self):
+        for expert in self._inner_experts:
+            expert.update()
 
-    def get_signals(self):
-        if hasattr(self, '_inner_experts'):
-            return [exp.get_signals() for exp in self._inner_experts]
-        else:
-            return self._signals
-
-    def get_weights(self):
-        return self._original_weights
-
-    def normalize_weights(self):
-        if self._weights.size > 0:
-            self._original_weights, self._weights = self._weights, softmax(self._weights)
-
-    def get_parameters(self):
-        raise NotImplementedError()
+    def estimate(self):
+        return sum(exp.estimate() for exp in self._inner_experts) / len(self._inner_experts)
 
     def get_shape(self):
         inner = []
@@ -61,13 +40,15 @@ class BaseExpert:
                 inner.append(exp.get_shape())
         return [len(self._inner_experts), inner]
 
-    def estimate(self):
-        estimations = np.array([expert.estimate() for expert in self._inner_experts])
-        return estimations @ self._weights
+    def get_signals(self):
+        if hasattr(self, '_inner_experts'):
+            return [exp.get_signals() for exp in self._inner_experts]
+        else:
+            return np.array(self._signals)
 
-    def update(self):
-        for expert in self._inner_experts:
-            expert.update()
+    def get_model_name(self):
+        name = self.name.replace('[', '').replace(']', '').replace(' ', '_')
+        return name + f'_id{hex(id(self))}'
 
     def show(self, indentation=0, overview=True):
         total = self.count_total_inner_experts()
@@ -81,10 +62,6 @@ class BaseExpert:
             print(f'{" " * indentation} {total:>5}] {self.name}')
             for expert in self._inner_experts:
                 expert.show(indentation + 10, overview=overview)
-
-    def get_model_name(self):
-        name = self.name.replace('[', '').replace(']', '').replace(' ', '_')
-        return name + f'_id{hex(id(self))}'
 
     def count_total_inner_experts(self):
         if hasattr(self, '_inner_experts'):
@@ -165,13 +142,11 @@ class RuleExpert(BaseExpert):
         self._indicators = indicators
         if not self._rule.compatible(*self._indicators):
             raise ValueError('Rule is incompatible with indicators')
-        indicator_names = [indicator.name for indicator in self._indicators]
         self.name = f'RuleExpert [{self._rule.name}]'
         del self._inner_experts
-        del self._weights
 
     def set_experts(self):
-        raise SystemError('Do not call this method')
+        raise AttributeError('RuleExpert cannot have inner experts')
 
     def set_data(self, data: data.DataMaintainer):
         self._signals = []
@@ -180,9 +155,6 @@ class RuleExpert(BaseExpert):
 
     def get_parameters(self):
         return {}
-
-    def get_shape(self):
-        return []
 
     def estimate(self):
         estimation = self._rule.decide(*self._indicators)
