@@ -54,6 +54,9 @@ class BaseExpert:
     def get_parameters(self):
         raise NotImplementedError()
 
+    def get_shape(self):
+        return [len(self._inner_experts)] + self._inner_experts[0].get_shape()
+
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
         return estimations @ self._weights
@@ -74,6 +77,10 @@ class BaseExpert:
             print(f'{" " * indentation} {total:>5}] {self.name}')
             for expert in self._inner_experts:
                 expert.show(indentation + 10, overview=overview)
+
+    def get_model_name(self):
+        name = self.name.replace('[', '').replace(']', '').replace(' ', '_')
+        return name + f'_id{hex(id(self))}'
 
     def count_total_inner_experts(self):
         if hasattr(self, '_inner_experts'):
@@ -155,7 +162,7 @@ class RuleExpert(BaseExpert):
         if not self._rule.compatible(*self._indicators):
             raise ValueError('Rule is incompatible with indicators')
         indicator_names = [indicator.name for indicator in self._indicators]
-        self.name = f'RuleExpert [{self._rule.name}, {str(indicator_names)}]'
+        self.name = f'RuleExpert [{self._rule.name}]'
         del self._inner_experts
         del self._weights
 
@@ -169,6 +176,9 @@ class RuleExpert(BaseExpert):
 
     def get_parameters(self):
         return {}
+
+    def get_shape(self):
+        return []
 
     def estimate(self):
         estimation = self._rule.decide(*self._indicators)

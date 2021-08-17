@@ -94,10 +94,10 @@ class Trainer:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
         self.choose_branches(pair_expert, timeframes=timeframes, rules=rules)
-        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.2)
-        # self.trim_bad_experts(pair_expert, min_trades=10, nbest=10)
-        pair_expert.show()
-        raise SystemExit()
+        # self.trim_bad_experts(pair_expert, min_trades=10, trashold=.2)
+        self.trim_bad_experts(pair_expert, min_trades=10, nbest=5)
+        # pair_expert.show()
+        # raise SystemExit()
         config.serialize_expert_to_json(expert=pair_expert)
 
     def choose_branches(self, expert: experts.BaseExpert, *,
