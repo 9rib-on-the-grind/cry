@@ -73,11 +73,12 @@ def get_expert_layer(expert):
 
 def construct_model_from_expert(expert: experts.BaseExpert, inputs=None):
     def get_inputs(shape):
-        n, *other = shape
-        if not other:
-            return [keras.Input(1) for _ in range(n)]
+        count, inner = shape
+        print(count, inner)
+        if not inner:
+            return [keras.Input(1) for _ in range(count)]
         else:
-            return [get_inputs(other) for _ in range(n)]
+            return [get_inputs(inn) for inn in inner]
 
     inputs = inputs if inputs is not None else get_inputs(expert.get_shape())
 
@@ -138,7 +139,9 @@ if __name__ == '__main__':
 
     data, signals = trainer.get_signals()
     expert = config.deserialize_expert_from_json()
+    expert.show(overview=False)
     expert.show()
+    print(expert.get_shape())
 
     model = construct_model_from_expert(expert)
     model.summary()
@@ -161,7 +164,7 @@ if __name__ == '__main__':
         loss='mse',
     )
     model.fit(
-        x=signals, 
+        x=signals,
         y=np.array(true_conf),
         validation_split=.2,
         epochs=100,

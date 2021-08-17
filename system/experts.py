@@ -55,7 +55,11 @@ class BaseExpert:
         raise NotImplementedError()
 
     def get_shape(self):
-        return [len(self._inner_experts)] + self._inner_experts[0].get_shape()
+        inner = []
+        if not isinstance(self, RuleClassExpert):
+            for exp in self._inner_experts:
+                inner.append(exp.get_shape())
+        return [len(self._inner_experts), inner]
 
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
