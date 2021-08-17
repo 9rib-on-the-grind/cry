@@ -34,6 +34,7 @@ class PairTrader(BaseTrader):
         self.profit = None
         self.time, self.times = 0, []
         self.commision = .00075
+        self.history = []
 
     def set_expert(self, expert: experts.PairExpert):
         self.expert = expert
@@ -48,6 +49,7 @@ class PairTrader(BaseTrader):
             (Example: '1h' -> [...])
         """
 
+        self.history.append(data)
         for timeframe, data in data.items():
             self.data[timeframe].update(data)
         self.expert.update()

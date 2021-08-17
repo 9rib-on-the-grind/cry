@@ -45,13 +45,13 @@ class Trainer:
     def construct_system(self):
         timeframes = self.timeframes
 
-        timeframes = ['1d', '1h']
+        timeframes = ['1h']
         rules = [                                                       #  4h    1h     15m
             # 'MovingAverageCrossoverRule',                                    # 36%    21%    45%
             # 'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
             # 'RelativeStrengthIndexTrasholdRule',                             # 17%    14%   -30%
-            'TripleExponentialDirectionChangeRule',                          # 23%    62%    33%
-            'IchimokuKinkoHyoTenkanKijunCrossoverRule',                      # 48%    30%    58%
+            # 'TripleExponentialDirectionChangeRule',                          # 23%    62%    33%
+            # 'IchimokuKinkoHyoTenkanKijunCrossoverRule',                      # 48%    30%    58%
             # 'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',                   # 28%    25%    56%
             # 'IchimokuKinkoHyoChikouCrossoverRule',                           # 28%    -6%     5%
             # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
@@ -265,6 +265,5 @@ def get_signals():
 
     signals = expert.get_signals()
     signals = np.array(signals)
-    signals = np.moveaxis(signals, [0, 1, 2, 3], [1, 2, 3, 0])
 
-    return signals
+    return pair_trader.history, signals
