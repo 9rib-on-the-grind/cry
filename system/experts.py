@@ -31,7 +31,7 @@ class BaseExpert:
             expert.update()
 
     def estimate(self):
-        return sum(exp.estimate() for exp in self._inner_experts) / len(self._inner_experts)
+        return sum(exp.estimate() for exp in self._inner_experts) / len(self._inner_experts) if self._inner_experts else 0
 
     def get_shape(self):
         inner = []
