@@ -45,7 +45,7 @@ class Trainer:
     def construct_system(self):
         timeframes = self.timeframes
 
-        timeframes = ['1h']
+        timeframes = ['1h', '4h']
         rules = [                                                            #  4h    1h     15m
             'MovingAverageCrossoverRule',                                    # 36%    21%    45%
             'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
@@ -61,8 +61,8 @@ class Trainer:
             'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',     # 25%    33%     8%
         ]
 
-        reestimate = True
         reestimate = False
+        reestimate = True
 
         if reestimate:
             config.create_searchspace_config()
@@ -87,95 +87,28 @@ class Trainer:
 
             pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
-            self.trim_bad_experts(pair_expert, nbest=99999, verbose=True)
             config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
+            pair_expert.show()
 
         else:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
-        self.choose_branches(pair_expert, timeframes=timeframes, rules=rules)
-        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.3)
-        # self.trim_bad_experts(pair_expert, min_trades=10, nbest=50)
+        self.choose_branches(pair_expert, timeframes=timeframes, rules=rules, nleavs=10)
         config.serialize_expert_to_json(expert=pair_expert)
 
     def choose_branches(self, expert: experts.BaseExpert, *,
                               timeframes: list[str] = None,
-                              rules: list[str] = None):
-
+                              rules: list[str] = None,
+                              nleavs: int = None):
         if isinstance(expert, experts.PairExpert) and timeframes is not None:
             expert._inner_experts = [exp for exp in expert._inner_experts if exp.timeframe in timeframes]
-        if isinstance(expert, experts.TimeFrameExpert) and rules is not None:
+        elif isinstance(expert, experts.TimeFrameExpert) and rules is not None:
             expert._inner_experts = [exp for exp in expert._inner_experts if exp.rule in rules]
+        elif isinstance(expert, experts.RuleClassExpert) and nleavs is not None:
+            expert._inner_experts = expert._inner_experts[:nleavs]
         if hasattr(expert, '_inner_experts'):
             for exp in expert._inner_experts:
-                self.choose_branches(exp, timeframes=timeframes, rules=rules)
-
-    def trim_bad_experts(self, expert: experts.BaseExpert, *, ret_dict: dict = None, verbose: bool = False, indentation: int = 0, **kwargs):
-        kwargs |= {attr: getattr(expert, attr) for attr in ('base', 'quote', 'pair', 'timeframe') if hasattr(expert, attr)}
-        if isinstance(expert, experts.RuleClassExpert):
-            expert._inner_experts = self.best_rule_experts(expert._inner_experts, rule=expert.rule, **kwargs)
-        else:
-            results = mp.Manager().dict()
-            kwargs |= {'verbose': verbose, 'indentation': indentation + 10}
-            jobs = [mp.Process(target=self.trim_bad_experts,
-                               args=(expert,),
-                               kwargs=kwargs | {'ret_dict': results}) for expert in expert._inner_experts]
-            for job in jobs:
-                job.start()
-            for job in jobs:
-                job.join()
-            expert._inner_experts = results.values()
-        if ret_dict is not None:
-            ret_dict[os.getpid()] = expert
-        if verbose:
-            print(f'{" " * indentation}trimmed: {expert.name}')
-
-    def best_rule_experts(self, candidates: list[experts.RuleExpert],
-                                min_trades: int = None, *,
-                                trashold: float = None,
-                                nbest: int = None,
-                                percent: 'float (0, 1)' = None,
-                                **kwargs) -> list[experts.RuleExpert]:
-        nbest = nbest if percent is None else int(percent * len(candidates))
-        for expert in candidates:
-            self.estimate_expert(expert, **kwargs)
-        if min_trades is not None:
-            candidates = [expert for expert in candidates if expert._estimated_ntrades >= min_trades]
-        candidates.sort(reverse=True, key=lambda x: x._estimated_profit)
-        if trashold is not None:
-            return [expert for expert in candidates if expert._estimated_profit > trashold]
-        elif nbest is not None:
-            return candidates[:nbest]
-
-    def estimate_expert(self, expert: experts.RuleExpert,
-                              pair: str,
-                              timeframe: str,
-                              **kwargs):
-        ndays = {'1d': 180, '4h': 120, '1h': 30, '15m': 14, '1m': 1}
-        if expert._estimated_profit is None:
-            pair_trader = trader.PairTrader(pair)
-            pair_expert = self.cast_to_pair_expert(expert, timeframe=timeframe, **kwargs)
-            pair_expert.set_weights(recursive=True)
-            pair_trader.set_expert(pair_expert)
-            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays[timeframe])
-            expert._estimated_profit = profit / ndays[timeframe]
-            expert._estimated_ntrades = ntrades
-
-    def cast_to_pair_expert(self, expert: experts.BaseExpert,
-                                  quote: str,
-                                  base: str,
-                                  timeframe: str = None,
-                                  rule: str = None) -> experts.PairExpert:
-        for rule_cls, upcast_cls, args in zip([experts.RuleExpert, experts.RuleClassExpert, experts.TimeFrameExpert],
-                                              [experts.RuleClassExpert, experts.TimeFrameExpert, experts.PairExpert],
-                                              [(rule,), (timeframe,), (quote, base)]):
-            if isinstance(expert, rule_cls):
-                assert None not in args, f'No arguments for {upcast_cls}'
-                temp = upcast_cls(*args)
-                temp.set_experts([expert])
-                expert = temp
-                expert.set_weights()
-        return expert
+                self.choose_branches(exp, timeframes=timeframes, rules=rules, nleavs=nleavs)
 
     def simulate_pair_trader(self, pair_trader: trader.PairTrader, ndays: int, *, display: bool = False):
         def load_history(pair: str, timeframe: str) -> pd.DataFrame:
@@ -215,37 +148,6 @@ class Trainer:
         if display:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
-
-    def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
-        def config_axs(*axs):
-            for ax in axs:
-                ax.grid(True)
-                ax.set_xlim(time[0], time[-1])
-                ax.margins(x=.1)
-
-        pair_trader.show_evaluation()
-
-        timeframe = pair_trader.min_timeframe
-        close = new_data[timeframe][:, 4] # Close price
-        time = new_data[timeframe][:, 6] # Close time
-        buy_time, buy_price = pair_trader.times[::2], [trade[2] for trade in pair_trader.trades[::2]]
-        sell_time, sell_price = pair_trader.times[1::2], [trade[2] for trade in pair_trader.trades[1::2]]
-
-        fig, axs = plt.subplots(nrows=3, figsize=(19.2, 10.8), dpi=100)
-        fig.tight_layout()
-        ax1, ax2, ax3 = axs.reshape(-1)
-        config_axs(ax1, ax2, ax3)
-
-        ax1.plot(time, close, color='black', linewidth=1)
-        ax1.scatter(buy_time, buy_price, color='blue')
-        ax1.scatter(sell_time, sell_price, color='red')
-
-        ax2.plot(pair_trader.times, pair_trader._profits, linestyle=':')
-
-        estimations = pair_trader.estimations
-        ax3.plot(time[:len(estimations)], estimations)
-
-        plt.show()
 
 
 
