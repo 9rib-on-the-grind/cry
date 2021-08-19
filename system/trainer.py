@@ -7,6 +7,7 @@ from pprint import pprint
 import multiprocessing as mp
 import os
 import sys
+import pickle
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,16 +25,16 @@ import config
 class Trainer:
     rule_names = [
         'MovingAverageCrossoverRule',
-        'ExponentialMovingAverageCrossoverRule',
+        # 'ExponentialMovingAverageCrossoverRule',
         'RelativeStrengthIndexTrasholdRule',
         'TripleExponentialDirectionChangeRule',
         'IchimokuKinkoHyoTenkanKijunCrossoverRule',
-        'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
+        # 'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
         'IchimokuKinkoHyoChikouCrossoverRule',
         # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
         'BollingerBandsLowerUpperCrossoverRule',
-        'BollingerBandsLowerMidCrossoverRule',
-        'BollingerBandsUpperMidCrossoverRule',
+        # 'BollingerBandsLowerMidCrossoverRule',
+        # 'BollingerBandsUpperMidCrossoverRule',
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
     ]
 
@@ -45,7 +46,7 @@ class Trainer:
     def construct_system(self):
         timeframes = self.timeframes
 
-        timeframes = ['1h', '4h']
+        timeframes = ['1h']
         rules = [                                                            #  4h    1h     15m
             'MovingAverageCrossoverRule',                                    # 36%    21%    45%
             'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
@@ -61,40 +62,31 @@ class Trainer:
             'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',     # 25%    33%     8%
         ]
 
-        reestimate = False
-        reestimate = True
+        config.create_searchspace_config()
 
-        if reestimate:
-            config.create_searchspace_config()
+        pair = 'BTC/USDT'
+        base, quote = pair.split('/')
+        timeframe_lst = []
+        for timeframe in timeframes:
+            rule_cls_lst = []
+            print(f'load timeframe [{timeframe}]')
 
-            pair = 'BTC/USDT'
-            base, quote = pair.split('/')
-            timeframe_lst = []
-            for timeframe in timeframes:
-                rule_cls_lst = []
-                print(f'load timeframe [{timeframe}]')
+            for rule in self.rule_names:
+                new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
+                print(' ' * 5 + f'{rule:<60} {len(new):>5} candidates')
+                rule_cls_expert = experts.RuleClassExpert(rule)
+                rule_cls_expert.set_experts(new)
+                rule_cls_lst.append(rule_cls_expert)
 
-                for rule in self.rule_names:
-                    new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
-                    print(' ' * 5 + f'{rule:<60} {len(new):>5} candidates')
-                    rule_cls_expert = experts.RuleClassExpert(rule)
-                    rule_cls_expert.set_experts(new)
-                    rule_cls_lst.append(rule_cls_expert)
+            timeframe_expert = experts.TimeFrameExpert(timeframe)
+            timeframe_expert.set_experts(rule_cls_lst)
+            timeframe_lst.append(timeframe_expert)
 
-                timeframe_expert = experts.TimeFrameExpert(timeframe)
-                timeframe_expert.set_experts(rule_cls_lst)
-                timeframe_lst.append(timeframe_expert)
+        pair_expert = experts.PairExpert(base, quote)
+        pair_expert.set_experts(timeframe_lst)
 
-            pair_expert = experts.PairExpert(base, quote)
-            pair_expert.set_experts(timeframe_lst)
-            config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
-            pair_expert.show()
-
-        else:
-            pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
-
-        self.choose_branches(pair_expert, timeframes=timeframes, rules=rules, nleavs=10)
-        config.serialize_expert_to_json(expert=pair_expert)
+        self.choose_branches(pair_expert, timeframes=timeframes, rules=rules, nleavs=999999)
+        return pair_expert
 
     def choose_branches(self, expert: experts.BaseExpert, *,
                               timeframes: list[str] = None,
@@ -140,6 +132,7 @@ class Trainer:
         for i in range(0, simulation_length, minutes[pair_trader.min_timeframe]):
             update = {}
             for timeframe in pair_trader.timeframes:
+
                 if not i % minutes[timeframe]:
                     update[timeframe] = next(new_data_iter[timeframe])
             pair_trader.update(update)
@@ -151,14 +144,22 @@ class Trainer:
 
 
 
-def get_signals():
+def get_data():
     trainer = Trainer()
-    trainer.construct_system()
 
-    expert = config.deserialize_expert_from_json()
+    expert = trainer.construct_system()
 
-    pair_trader = trader.PairTrader('BTCUSDT')
-    pair_trader.set_expert(expert)
-    trainer.simulate_pair_trader(pair_trader, 60)
+    reestimate = True
+    reestimate = False
+    if reestimate:
+        pair_trader = trader.PairTrader('BTCUSDT')
+        pair_trader.set_expert(expert)
+        trainer.simulate_pair_trader(pair_trader, 60)
 
-    return pair_trader.history, expert.get_signals()
+        pickle.dump(pair_trader.history, open('history', 'wb'))
+        pickle.dump(expert.get_signals(), open('signals', 'wb'))
+
+    history = pickle.load(open('history', 'rb'))
+    signals = pickle.load(open('signals', 'rb'))
+
+    return expert, history, signals
