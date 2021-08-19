@@ -64,26 +64,29 @@ class Trainer:
 
         config.create_searchspace_config()
 
-        pair = 'BTC/USDT'
-        base, quote = pair.split('/')
-        timeframe_lst = []
-        for timeframe in timeframes:
-            rule_cls_lst = []
-            print(f'load timeframe [{timeframe}]')
+        from_searchspace = False
+        if from_searchspace:
+            timeframe_lst = []
+            for timeframe in timeframes:
+                rule_cls_lst = []
+                print(f'load timeframe [{timeframe}]')
 
-            for rule in self.rule_names:
-                new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
-                print(' ' * 5 + f'{rule:<60} {len(new):>5} candidates')
-                rule_cls_expert = experts.RuleClassExpert(rule)
-                rule_cls_expert.set_experts(new)
-                rule_cls_lst.append(rule_cls_expert)
+                for rule in self.rule_names:
+                    new = [expert for expert in config.get_experts_from_searchspace(timeframe, rule)]
+                    print(' ' * 5 + f'{rule:<60} {len(new):>5} candidates')
+                    rule_cls_expert = experts.RuleClassExpert(rule)
+                    rule_cls_expert.set_experts(new)
+                    rule_cls_lst.append(rule_cls_expert)
 
-            timeframe_expert = experts.TimeFrameExpert(timeframe)
-            timeframe_expert.set_experts(rule_cls_lst)
-            timeframe_lst.append(timeframe_expert)
+                timeframe_expert = experts.TimeFrameExpert(timeframe)
+                timeframe_expert.set_experts(rule_cls_lst)
+                timeframe_lst.append(timeframe_expert)
 
-        pair_expert = experts.PairExpert(base, quote)
-        pair_expert.set_experts(timeframe_lst)
+            pair_expert = experts.PairExpert(base, quote)
+            pair_expert.set_experts(timeframe_lst)
+
+        else:
+            pair_expert = config.deserialize_expert_from_json()
 
         self.choose_branches(pair_expert, timeframes=timeframes, rules=rules, nleavs=999999)
         return pair_expert
@@ -154,7 +157,7 @@ def get_data():
     if reestimate:
         pair_trader = trader.PairTrader('BTCUSDT')
         pair_trader.set_expert(expert)
-        trainer.simulate_pair_trader(pair_trader, 60)
+        trainer.simulate_pair_trader(pair_trader, 360)
 
         pickle.dump(pair_trader.history, open('history', 'wb'))
         pickle.dump(expert.get_signals(), open('signals', 'wb'))
@@ -163,3 +166,8 @@ def get_data():
     signals = pickle.load(open('signals', 'rb'))
 
     return expert, history, signals
+
+
+
+if __name__ == '__main__':
+    get_data()
