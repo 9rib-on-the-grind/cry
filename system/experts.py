@@ -16,8 +16,6 @@ class BaseExpert:
     def __init__(self):
         self.name = 'BaseExpert'
         self._inner_experts = None
-        self._estimated_profit = None
-        self._estimated_ntrades = None
 
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
@@ -31,7 +29,8 @@ class BaseExpert:
             expert.update()
 
     def estimate(self):
-        return sum(exp.estimate() for exp in self._inner_experts) / len(self._inner_experts) if self._inner_experts else 0
+        for exp in self._inner_experts:
+            exp.estimate()
 
     def get_shape(self):
         inner = []
