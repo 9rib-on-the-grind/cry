@@ -5,6 +5,7 @@ import tensorflow.keras as keras
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import time
 
 import trainer
 import experts
@@ -12,52 +13,23 @@ import config
 
 
 
-class PairExpertLayer(keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
-        self.layers = [
-            keras.layers.Dense(1),
-            keras.layers.Activation('tanh'),
+def get_inner_layers(repeat, inner, **kwargs):
+    layers = []
+    for _ in range(repeat):
+        layers += [
+            keras.layers.Dense(inner, activation='selu'),
+            keras.layers.Dropout(.4),
+            keras.layers.BatchNormalization(),
         ]
+    return layers
 
-    def call(self, inputs):
-        for layer in self.layers:
-            inputs = layer(inputs)
-        return inputs
-
-
-
-class TimeFrameExpertLayer(keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
-        self.layers = [
-            keras.layers.Dense(11),
-            keras.layers.LeakyReLU(),
-
-            keras.layers.Dense(10),
-        ]
-
-    def call(self, inputs):
-        for layer in self.layers:
-            inputs = layer(inputs)
-        return inputs
+def get_outer_layers(outer, **kwargs):
+    layers = [
+        keras.layers.Dense(outer, activation='selu'),
+    ]
+    return layers
 
 
-
-class RuleClassExpertLayer(keras.layers.Layer):
-    def __init__(self):
-        super().__init__()
-        self.layers = [
-            keras.layers.Dense(50),
-            keras.layers.LeakyReLU(),
-
-            keras.layers.Dense(10),
-        ]
-
-    def call(self, inputs):
-        for layer in self.layers:
-            inputs = layer(inputs)
-        return inputs
 
 def construct_model_from_expert(expert: experts.BaseExpert, inputs=None):
     def get_inputs(shape):
@@ -67,29 +39,44 @@ def construct_model_from_expert(expert: experts.BaseExpert, inputs=None):
         else:
             return [get_inputs(inn) for inn in inner]
 
-    def get_expert_layer(expert):
-        table = {
-            experts.PairExpert: PairExpertLayer,
-            experts.TimeFrameExpert: TimeFrameExpertLayer,
-            experts.RuleClassExpert: RuleClassExpertLayer,
-        }
-        return table[expert.__class__]()
 
     inputs = inputs if inputs is not None else get_inputs(expert.get_shape())
 
     if hasattr(expert, '_inner_experts'):
         submodels = [construct_model_from_expert(exp, inp) for exp, inp in zip(expert._inner_experts, inputs)]
         results = [subm(inp) for subm, inp in zip(submodels, inputs)]
-        concat = keras.layers.concatenate(results)
-        expert_layer = get_expert_layer(expert)(concat)
-        return keras.Model(inputs=inputs, outputs=expert_layer, name=expert.get_model_name())
+
+        params = config[expert.__class__]
+        concat = prev = keras.layers.concatenate(results)
+        for layer in get_inner_layers(**params):
+            prev = layer(prev)
+        outer = keras.layers.Dense(params['outer'], activation='selu')(prev)
+        if isinstance(expert, experts.PairExpert):
+            outer = keras.layers.Dense(1, activation='tanh')(outer)
+
+        return keras.Model(inputs=inputs, outputs=outer, name=expert.get_model_name())
     else:
         return keras.Model(inputs, inputs, name=expert.get_model_name())
 
-def get_conf(close, n=24):
+
+
+config = {
+    experts.PairExpert: {'repeat': 0, 'inner': 3, 'outer': 5},
+    experts.TimeFrameExpert: {'repeat': 5, 'inner': 15, 'outer': 20},
+    experts.RuleClassExpert: {'repeat': 5, 'inner': 100, 'outer': 10},
+}
+
+
+
+
+
+
+
+
+def get_conf(close, repeat=24):
     close = pd.Series(close)
-    mins = close[::-1].rolling(n, closed='right', min_periods=0).min()[::-1]
-    maxs = close[::-1].rolling(n, closed='right', min_periods=0).max()[::-1]
+    mins = close[::-1].rolling(repeat, closed='right', min_periods=0).min()[::-1]
+    maxs = close[::-1].rolling(repeat, closed='right', min_periods=0).max()[::-1]
     height = maxs - mins
     center = height / 2
     close = close - mins - center
@@ -121,32 +108,36 @@ def plot(close, true_conf=None, pred=None):
 
 if __name__ == '__main__':
 
-    data, signals = trainer.get_signals()
-    expert = config.deserialize_expert_from_json()
+    expert, data, signals = trainer.get_data()
 
+    # t = time.time()
     model = construct_model_from_expert(expert)
-    keras.utils.plot_model(model, "arch.png", expand_nested=True, rankdir='LR')
     model.summary()
     expert.show()
+    # print('model construction', time.time() - t)
 
     close = [d[4] for d in [d['1h'] for d in data]]
     _, true_conf = get_conf(close, 24)
 
     model.compile(
-        optimizer=keras.optimizers.SGD(learning_rate=1e-3,
-                                       momentum=.9,
-                                       nesterov=True),
+        optimizer='rmsprop',
         loss='mse',
     )
     model.fit(
         x=signals,
         y=np.array(true_conf),
         validation_split=.2,
-        epochs=50,
+        epochs=30,
         batch_size=32,
-        callbacks=[keras.callbacks.ReduceLROnPlateau(verbose=1)],
+        callbacks=[
+            keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
+            tf.keras.callbacks.EarlyStopping(patience=4, verbose=1, restore_best_weights=True),
+        ],
+        use_multiprocessing=True,
     )
 
     pred = model.predict(signals)
+    print(pred)
+    print(pred[0])
     print(np.min(pred), np.max(pred))
     plot(close, true_conf, pred)
