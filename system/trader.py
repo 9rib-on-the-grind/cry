@@ -55,23 +55,23 @@ class PairTrader(BaseTrader):
         self.expert.update()
 
     def act(self):
-        timeframe =  self.min_timeframe
-        price = self.data[timeframe, 'Close']
-        time = self.data[timeframe, 'Close time']
+        # timeframe =  self.min_timeframe
+        # price = self.data[timeframe, 'Close']
+        # time = self.data[timeframe, 'Close time']
         estimation = self.expert.estimate()
-        self.estimations.append(estimation)
-        if estimation > self.trashold and self.balance > 0: # buy
-            self.quantity = (1 - self.commision) * self.balance / price
-            self.times.append(time)
-            self.trades.append(('buy', self.quantity, price))
-            self.balance = 0
-            self._profits.append(self._profits[-1] if self._profits else 0)
-        elif estimation < -self.trashold and self.quantity > 0: # sell
-            self.balance = (1 - self.commision) * self.quantity * price
-            self.times.append(time)
-            self.trades.append(('sell', self.quantity, price))
-            self._profits.append(self.evaluate_profit())
-            self.quantity = 0
+        # self.estimations.append(estimation)
+        # if estimation > self.trashold and self.balance > 0: # buy
+        #     self.quantity = (1 - self.commision) * self.balance / price
+        #     self.times.append(time)
+        #     self.trades.append(('buy', self.quantity, price))
+        #     self.balance = 0
+        #     self._profits.append(self._profits[-1] if self._profits else 0)
+        # elif estimation < -self.trashold and self.quantity > 0: # sell
+        #     self.balance = (1 - self.commision) * self.quantity * price
+        #     self.times.append(time)
+        #     self.trades.append(('sell', self.quantity, price))
+        #     self._profits.append(self.evaluate_profit())
+        #     self.quantity = 0
 
     def show_evaluation(self):
         if self.quantity > 0:
