@@ -165,7 +165,7 @@ def get_data():
     history = pickle.load(open('history', 'rb'))
     signals = pickle.load(open('signals', 'rb'))
 
-    return expert, history, signals
+    return history, signals
 
 
 
