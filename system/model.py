@@ -2,10 +2,10 @@ from pprint import pprint
 
 import tensorflow as tf
 import tensorflow.keras as keras
+import keras_tuner
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import time
 import json
 
 import trainer
@@ -29,23 +29,30 @@ def get_outer_layers(outer, **kwargs):
     ]
     return layers
 
-def construct_model_from_expert_config(filename='expert.json'):
+def construct_model_from_expert_config(hp, *, filename='expert.json'):
     def get_inputs(hierarchy):
         if 'inner experts' in hierarchy:
             return [get_inputs(sub) for sub in hierarchy['inner experts']]
         else:
             return keras.Input(1)
 
-    def rec(hierarchy: dict, inputs: list):
+    def build(hierarchy: dict, inputs: list, hp):
         if 'inner experts' in hierarchy:
-            submodels = [rec(sub, inp) for sub, inp in zip(hierarchy['inner experts'], inputs)]
+            submodels = [build(sub, inp, hp) for sub, inp in zip(hierarchy['inner experts'], inputs)]
             results = [subm(inp) for subm, inp in zip(submodels, inputs)]
 
-            params = config[hierarchy['name']]
-            concat = prev = keras.layers.concatenate(results)
-            for layer in get_inner_layers(**params):
+            name = hierarchy['name']
+
+            repeat = hp.Choice(name + '_repeat', values=[3, 5])
+            inner = hp.Choice(name + '_inner', values=[100, 50])
+
+            if len(results) > 1:
+                concat = prev = keras.layers.concatenate(results)
+            else:
+                concat = prev = results[0]
+            for layer in get_inner_layers(repeat, inner):
                 prev = layer(prev)
-            outer = keras.layers.Dense(params['outer'], activation='selu')(prev)
+            outer = keras.layers.Dense(10, activation='selu')(prev)
             if hierarchy['name'] == 'PairExpert':
                 outer = keras.layers.Dense(1, activation='tanh')(outer)
 
@@ -56,17 +63,12 @@ def construct_model_from_expert_config(filename='expert.json'):
 
     hierarchy = json.load(open(filename, 'r'))
     inputs = get_inputs(hierarchy)
-    return rec(hierarchy, inputs)
-
-
-
-config = {
-    'PairExpert': {'repeat': 0, 'inner': 3, 'outer': 5},
-    'TimeFrameExpert': {'repeat': 0, 'inner': 15, 'outer': 20},
-    'RuleClassExpert': {'repeat': 5, 'inner': 100, 'outer': 10},
-}
-
-
+    model = build(hierarchy, inputs, hp)
+    model.compile(
+        optimizer='rmsprop',
+        loss='mse',
+    )
+    return model
 
 
 def get_conf(close, period=24):
@@ -108,13 +110,17 @@ if __name__ == '__main__':
     close = [d[4] for d in [d['1h'] for d in history]]
     _, true_conf = get_conf(close, 24)
 
-    model = construct_model_from_expert_config()
-    
-    model.compile(
-        optimizer='rmsprop',
-        loss='mse',
+    tuner = keras_tuner.RandomSearch(
+        construct_model_from_expert_config,
+        objective="val_accuracy",
+        max_trials=3,
+        executions_per_trial=2,
+        overwrite=True,
+        directory="my_dir",
+        project_name="helloworld",
     )
-    model.fit(
+
+    tuner.search(
         x=signals,
         y=np.array(true_conf),
         validation_split=.2,
@@ -124,11 +130,4 @@ if __name__ == '__main__':
             keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
             tf.keras.callbacks.EarlyStopping(patience=4, verbose=1, restore_best_weights=True),
         ],
-        use_multiprocessing=True,
     )
-
-    pred = model.predict(signals)
-    print(pred)
-    print(pred[0])
-    print(np.min(pred), np.max(pred))
-    plot(close, true_conf, pred)
