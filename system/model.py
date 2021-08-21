@@ -41,24 +41,33 @@ def construct_model_from_expert_config(hp, *, filename='expert.json'):
         if name != 'RuleClassExpert':
             submodels = [build(sub, inp, hp) for sub, inp in zip(hierarchy['inner experts'], inputs)]
             results = [subm(inp) for subm, inp in zip(submodels, inputs)]
+            main_input, aux_outs = map(list, zip(*results))
         else:
-            results = [inputs]
-
-        if len(results) > 1:
-            concat = prev = keras.layers.concatenate(results)
-        else:
-            concat = prev = results[0]
+            main_input, aux_outs = [inputs], None
 
         repeat = hp.Choice(name + '_repeat', values=[5])
         inner = hp.Choice(name + '_inner', values=[100])
 
+        # main
+        concat = prev = (keras.layers.concatenate(main_input) if len(main_input) > 1 else main_input[0])
         for layer in get_inner_layers(repeat, inner):
             prev = layer(prev)
         outer = keras.layers.Dense(10, activation='selu')(prev)
         if name == 'PairExpert':
             outer = keras.layers.Dense(1, activation='tanh')(outer)
 
-        return keras.Model(inputs=inputs, outputs=outer)
+        # aux
+        if aux_outs is None:
+            aux = keras.layers.Dense(1, activation='tanh')(outer)
+        elif name != 'PairExpert':
+            aux = keras.layers.Dense(1, activation='tanh')(outer)
+            aux_avg = keras.layers.Average()(aux_outs) if len(aux_outs) > 1 else aux_outs[0]
+            aux = keras.layers.Average()([aux_avg, aux])
+        else:
+            aux = keras.layers.Average()(aux_outs) if len(aux_outs) > 1 else aux_outs[0]
+
+
+        return keras.Model(inputs=inputs, outputs=[outer, aux])
 
 
     hierarchy = json.load(open(filename, 'r'))
@@ -67,6 +76,7 @@ def construct_model_from_expert_config(hp, *, filename='expert.json'):
     model.compile(
         optimizer='rmsprop',
         loss='mse',
+        loss_weights=[.9, .1]
     )
     return model
 
@@ -111,24 +121,42 @@ if __name__ == '__main__':
     _, true_conf = get_conf(close, 24)
 
 
-    tuner = keras_tuner.Hyperband(
+    tuner = keras_tuner.BayesianOptimization(
         construct_model_from_expert_config,
         objective="val_loss",
-        max_epochs=100,
+        max_trials=20,
         executions_per_trial=1,
         overwrite=True,
         directory="my_dir",
         project_name="helloworld",
     )
 
+    conf = np.array(true_conf)
     tuner.search(
         x=signals,
-        y=np.array(true_conf),
+        y=[conf, conf],
         validation_split=.2,
-        epochs=100,
+        epochs=1,
         batch_size=32,
         callbacks=[
             keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
             tf.keras.callbacks.EarlyStopping(patience=4, verbose=1, restore_best_weights=True),
         ],
     )
+    tuner.results_summary()
+
+    best_hps=tuner.get_best_hyperparameters(num_trials=1)[0]
+    model = tuner.hypermodel.build(best_hps)
+    model.fit(
+        x=signals,
+        y=[conf, conf],
+        validation_split=.2,
+        epochs=1,
+        batch_size=32,
+        callbacks=[
+            keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
+            tf.keras.callbacks.EarlyStopping(patience=4, verbose=1, restore_best_weights=True),
+        ],
+    )
+    pred = model.predict(signals)[0]
+    plot(close, true_conf, pred)
