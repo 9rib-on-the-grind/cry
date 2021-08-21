@@ -133,7 +133,7 @@ if __name__ == '__main__':
 
     tuner = keras_tuner.BayesianOptimization(
         construct_model_from_expert_config,
-        objective=keras_tuner.Objective("main_out_loss", direction="min"),
+        objective=keras_tuner.Objective("val_main_out_loss", direction="min"),
         max_trials=100,
         executions_per_trial=1,
         overwrite=True,
