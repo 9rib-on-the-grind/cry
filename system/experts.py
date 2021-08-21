@@ -40,10 +40,10 @@ class BaseExpert:
         return [len(self._inner_experts), inner]
 
     def get_signals(self):
-        if hasattr(self, '_inner_experts'):
+        if not isinstance(self, RuleClassExpert):
             return [exp.get_signals() for exp in self._inner_experts]
         else:
-            return np.array(self._signals)
+            return np.array([exp._signals for exp in self._inner_experts]).T
 
     def get_model_name(self):
         name = self.name.replace('[', '').replace(']', '').replace(' ', '_')

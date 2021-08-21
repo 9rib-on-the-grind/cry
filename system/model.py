@@ -31,35 +31,35 @@ def get_outer_layers(outer, **kwargs):
 
 def construct_model_from_expert_config(hp, *, filename='expert.json'):
     def get_inputs(hierarchy):
-        if 'inner experts' in hierarchy:
+        if hierarchy['name'] != 'RuleClassExpert':
             return [get_inputs(sub) for sub in hierarchy['inner experts']]
         else:
-            return keras.Input(1)
+            return keras.Input(len(hierarchy['inner experts']))
 
     def build(hierarchy: dict, inputs: list, hp):
-        if 'inner experts' in hierarchy:
+        name = hierarchy['name']
+        if name != 'RuleClassExpert':
             submodels = [build(sub, inp, hp) for sub, inp in zip(hierarchy['inner experts'], inputs)]
             results = [subm(inp) for subm, inp in zip(submodels, inputs)]
-
-            name = hierarchy['name']
-
-            repeat = hp.Choice(name + '_repeat', values=[3, 5])
-            inner = hp.Choice(name + '_inner', values=[100, 50])
-
-            if len(results) > 1:
-                concat = prev = keras.layers.concatenate(results)
-            else:
-                concat = prev = results[0]
-            for layer in get_inner_layers(repeat, inner):
-                prev = layer(prev)
-            outer = keras.layers.Dense(10, activation='selu')(prev)
-            if hierarchy['name'] == 'PairExpert':
-                outer = keras.layers.Dense(1, activation='tanh')(outer)
-
-            return keras.Model(inputs=inputs, outputs=outer)
-
         else:
-            return keras.Model(inputs=inputs, outputs=inputs)
+            results = [inputs]
+
+        if len(results) > 1:
+            concat = prev = keras.layers.concatenate(results)
+        else:
+            concat = prev = results[0]
+
+        repeat = hp.Choice(name + '_repeat', values=[5])
+        inner = hp.Choice(name + '_inner', values=[100])
+
+        for layer in get_inner_layers(repeat, inner):
+            prev = layer(prev)
+        outer = keras.layers.Dense(10, activation='selu')(prev)
+        if name == 'PairExpert':
+            outer = keras.layers.Dense(1, activation='tanh')(outer)
+
+        return keras.Model(inputs=inputs, outputs=outer)
+
 
     hierarchy = json.load(open(filename, 'r'))
     inputs = get_inputs(hierarchy)
@@ -110,11 +110,12 @@ if __name__ == '__main__':
     close = [d[4] for d in [d['1h'] for d in history]]
     _, true_conf = get_conf(close, 24)
 
-    tuner = keras_tuner.RandomSearch(
+
+    tuner = keras_tuner.Hyperband(
         construct_model_from_expert_config,
-        objective="val_accuracy",
-        max_trials=3,
-        executions_per_trial=2,
+        objective="val_loss",
+        max_epochs=100,
+        executions_per_trial=1,
         overwrite=True,
         directory="my_dir",
         project_name="helloworld",
@@ -124,7 +125,7 @@ if __name__ == '__main__':
         x=signals,
         y=np.array(true_conf),
         validation_split=.2,
-        epochs=30,
+        epochs=100,
         batch_size=32,
         callbacks=[
             keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
