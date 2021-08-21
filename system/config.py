@@ -176,7 +176,10 @@ def serialize_expert_to_json(filename: str = 'expert.json',
 
     def get_hierarchy(expert: experts.BaseExpert):
         state = {}
-        state['name'] = expert.__class__.__name__
+        name = expert.__class__.__name__
+        uniq_name = f'{name}_{hex(id(expert))}'
+        state['name'] = name
+        state['unique name'] = uniq_name
         state['parameters'] = expert.get_parameters()
         if hasattr(expert, '_inner_experts'):
             state['inner experts'] = [get_hierarchy(exp) for exp in expert._inner_experts]
@@ -189,7 +192,6 @@ def serialize_expert_to_json(filename: str = 'expert.json',
             state['parameters'] = {'rule': rule, 'indicators': indicators}
             state['estimations'] = {'profit': expert._estimated_profit,
                                     'ntrades': expert._estimated_ntrades}
-
         return state
 
     hierarchy = get_hierarchy(expert)

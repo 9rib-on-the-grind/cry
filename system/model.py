@@ -13,20 +13,14 @@ import experts
 
 
 
-def get_inner_layers(repeat, inner, **kwargs):
+def get_inner_layers(repeat, inner, dropout, **kwargs):
     layers = []
     for _ in range(repeat):
         layers += [
             keras.layers.Dense(inner, activation='selu'),
-            keras.layers.Dropout(.35),
+            keras.layers.Dropout(dropout),
             keras.layers.BatchNormalization(),
         ]
-    return layers
-
-def get_outer_layers(outer, **kwargs):
-    layers = [
-        keras.layers.Dense(outer, activation='selu'),
-    ]
     return layers
 
 def construct_model_from_expert_config(hp, *, filename='expert.json'):
@@ -45,16 +39,31 @@ def construct_model_from_expert_config(hp, *, filename='expert.json'):
         else:
             main_input, aux_outs = [inputs], None
 
-        repeat = hp.Choice(name + '_repeat', values=[5])
-        inner = hp.Choice(name + '_inner', values=[100])
+        if name == 'RuleClassExpert':
+            dropout = hp.Float('1lvl_dropout', .2, .5, .05)
+            inner = hp.Int('1lvl_inner', 30, 150, 10)
+            repeat = hp.Int('1lvl_repeat', 0, 20)
+            outer = hp.Int('1lvl_outer', 5, 30)
+        elif name == 'TimeFrameExpert':
+            dropout = hp.Float('2lvl_dropout', .2, .5, .05)
+            inner = hp.Int('2lvl_inner', 50, 500, 50)
+            repeat = hp.Int('2lvl_repeat', 0, 20)
+            outer = hp.Int('2lvl_outer', 10, 100, 10)
+        elif name == 'PairExpert':
+            inner = 0
+            repeat = 0
+            dropout = 0
+            outer = hp.Int('3lvl_outer', 5, 30)
+        else:
+            raise ValueError('No hyperparameters for ' + name)
 
         # main
-        concat = prev = (keras.layers.concatenate(main_input) if len(main_input) > 1 else main_input[0])
-        for layer in get_inner_layers(repeat, inner):
+        prev = (keras.layers.concatenate(main_input) if len(main_input) > 1 else main_input[0])
+        for layer in get_inner_layers(repeat, inner, dropout):
             prev = layer(prev)
-        outer = keras.layers.Dense(10, activation='selu')(prev)
+        outer = keras.layers.Dense(outer, activation='selu')(prev)
         if name == 'PairExpert':
-            outer = keras.layers.Dense(1, activation='tanh')(outer)
+            outer = keras.layers.Dense(1, activation='tanh', name='main_out')(outer)
 
         # aux
         if aux_outs is None:
@@ -65,18 +74,19 @@ def construct_model_from_expert_config(hp, *, filename='expert.json'):
             aux = keras.layers.Average()([aux_avg, aux])
         else:
             aux = keras.layers.Average()(aux_outs) if len(aux_outs) > 1 else aux_outs[0]
+            aux = keras.layers.Layer(name='aux_out', trainable=False)(aux)
 
-
-        return keras.Model(inputs=inputs, outputs=[outer, aux])
-
+        return keras.Model(inputs=inputs, outputs=[outer, aux], name=hierarchy['unique name'])
 
     hierarchy = json.load(open(filename, 'r'))
     inputs = get_inputs(hierarchy)
     model = build(hierarchy, inputs, hp)
+    lr = hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4])
+    aux_rate = hp.Float('aux_rate', 0, .3, .05)
     model.compile(
-        optimizer='rmsprop',
+        optimizer=keras.optimizers.RMSprop(learning_rate=lr),
         loss='mse',
-        loss_weights=[.9, .1]
+        loss_weights=[1 - aux_rate, aux_rate],
     )
     return model
 
@@ -123,12 +133,12 @@ if __name__ == '__main__':
 
     tuner = keras_tuner.BayesianOptimization(
         construct_model_from_expert_config,
-        objective="val_loss",
-        max_trials=20,
+        objective=keras_tuner.Objective("main_out_loss", direction="min"),
+        max_trials=100,
         executions_per_trial=1,
         overwrite=True,
-        directory="my_dir",
-        project_name="helloworld",
+        directory="hyperparameters",
+        project_name="cry",
     )
 
     conf = np.array(true_conf)
@@ -136,7 +146,7 @@ if __name__ == '__main__':
         x=signals,
         y=[conf, conf],
         validation_split=.2,
-        epochs=1,
+        epochs=100,
         batch_size=32,
         callbacks=[
             keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
