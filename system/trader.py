@@ -39,7 +39,7 @@ class PairTrader(BaseTrader):
     def set_expert(self, expert: experts.PairExpert):
         self.expert = expert
         self.timeframes = [expert.timeframe for expert in self.expert._inner_experts]
-        self.min_timeframe = self.timeframes[-1]
+        self.min_timeframe = '15m'
 
     def update(self, data: Mapping[str, Iterable]):
         """Update candlesticks data, update expert.
