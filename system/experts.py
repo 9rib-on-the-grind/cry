@@ -148,6 +148,8 @@ class RuleExpert(BaseExpert):
         raise AttributeError('RuleExpert cannot have inner experts')
 
     def set_data(self, data: data.DataMaintainer):
+        self._data = data
+        self._estimation_hash = None
         self._signals = []
         for indicator in self._indicators:
             indicator.set_data(data)
@@ -156,7 +158,12 @@ class RuleExpert(BaseExpert):
         return {}
 
     def estimate(self):
-        estimation = self._rule.decide(*self._indicators)
+        if self._estimation_hash == self._data.update_hash:
+            estimation = self._last_estimation
+        else:
+            estimation = self._rule.decide(*self._indicators)
+            self._last_estimation = estimation
+            self._estimation_hash = self._data.update_hash
         self._signals.append(estimation)
         return estimation
 
