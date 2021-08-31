@@ -8,6 +8,7 @@ import multiprocessing as mp
 import os
 import sys
 import pickle
+from collections import defaultdict
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -46,7 +47,7 @@ class Trainer:
     def construct_system(self):
         timeframes = self.timeframes
 
-        timeframes = ['1h']
+        timeframes = ['4h', '1h', '15m']
         rules = [                                                            #  4h    1h     15m
             'MovingAverageCrossoverRule',                                    # 36%    21%    45%
             'ExponentialMovingAverageCrossoverRule',                         # 14%    18%    21%
@@ -115,31 +116,30 @@ class Trainer:
         def construct_data(pair_trader: trader.PairTrader, ndays: int):
             init_data = data.DataMaintainer()
             new_data = {}
-            start_time = load_history(pair_trader.pair, '1d')['Close time'].iloc[-ndays]
+            start_time = load_history(pair_trader.pair, '1d')['Open time'].iloc[-ndays]
             for timeframe in pair_trader.timeframes:
                 df = load_history(pair_trader.pair, timeframe)
-                split = df['Close time'].searchsorted(start_time)
+                split = df['Open time'].searchsorted(start_time) - 1
                 init, new = df.iloc[max(split-1000, 0): split].values.T, df.iloc[split:].values
                 mapping = {key: val for key, val in zip(df, init)}
                 init_data.add(mapping, location=[timeframe, 'Init'])
                 new_data[timeframe] = new
             return init_data, new_data
 
-        init_data, new_data = construct_data(pair_trader, ndays + 1)
+        init_data, new_data = construct_data(pair_trader, ndays + 2)
         pair_trader.set_data(init_data)
 
-        new_data_iter = {timeframe: iter(data) for timeframe, data in new_data.items()}
-        minutes = {timeframe: n for timeframe, n in zip(['1m', '15m', '1h', '4h', '1d'], [1, 15, 60, 240, 1440])}
-        simulation_length = minutes['1d'] * ndays
+        updates = defaultdict(dict) # close time -> update
+        for timeframe, rows in new_data.items():
+            for row in rows:
+                close_time = row[6]
+                updates[close_time][timeframe] = row
 
-        for i in range(0, simulation_length, minutes[pair_trader.min_timeframe]):
-            update = {}
-            for timeframe in pair_trader.timeframes:
-
-                if not i % minutes[timeframe]:
-                    update[timeframe] = next(new_data_iter[timeframe])
+        for idx, (close_time, update) in enumerate(list(sorted(updates.items()))):
             pair_trader.update(update)
             pair_trader.act()
+            if not idx % 100:
+                print(f'done {100*idx/len(updates):>5.1f} %')
 
         if display:
             self.show_trades(pair_trader, new_data)
