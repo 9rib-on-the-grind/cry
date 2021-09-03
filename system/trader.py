@@ -23,11 +23,11 @@ class BaseTrader:
 
 
 class PairTrader(BaseTrader):
-    def __init__(self, pair: str):
+    def __init__(self, pair: str, trashold=.2):
         self.pair = pair
         self.balance = self.initial_money = 100
         self.quantity = 0
-        self.trashold = .2
+        self.trashold = trashold
         self.estimations = []
         self.trades = []
         self._profits = []
@@ -72,6 +72,22 @@ class PairTrader(BaseTrader):
         #     self.trades.append(('sell', self.quantity, price))
         #     self._profits.append(self.evaluate_profit())
         #     self.quantity = 0
+
+    def act_from_conf(self, price, conf):
+        for time, (price, estimation) in enumerate(zip(price, conf)):
+            self.estimations.append(estimation)
+            if estimation > self.trashold and self.balance > 0: # buy
+                self.quantity = (1 - self.commision) * self.balance / price
+                self.times.append(time)
+                self.trades.append(('buy', self.quantity, price))
+                self.balance = 0
+                self._profits.append(self._profits[-1] if self._profits else 0)
+            elif estimation < -self.trashold and self.quantity > 0: # sell
+                self.balance = (1 - self.commision) * self.quantity * price
+                self.times.append(time)
+                self.trades.append(('sell', self.quantity, price))
+                self._profits.append(self.evaluate_profit())
+                self.quantity = 0
 
     def show_evaluation(self):
         if self.quantity > 0:
