@@ -45,7 +45,7 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             for layer in get_inner_layers(repeat, inner, dropout):
                 prev = layer(prev)
             outer = keras.layers.Dense(outer, activation='selu')(prev)
-            aux = keras.layers.Dense(3, activation='softmax')(outer)
+            aux = keras.layers.Dense(1, activation='tanh')(outer)
 
             return keras.Model(inputs=inputs, outputs=[outer, aux])
 
@@ -57,7 +57,7 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             outer = 30
             concat = keras.layers.concatenate(main_input)
             outer = keras.layers.Dense(outer, activation='selu')(concat)
-            outer = keras.layers.Dense(3, activation='softmax', use_bias=False)(outer)
+            outer = keras.layers.Dense(1, activation='tanh', use_bias=False)(outer)
 
             sub_aux = keras.layers.Average()(sub_aux)
             aux = keras.layers.Average()([sub_aux, outer]) # change by dense?
@@ -69,11 +69,11 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             results = [subm(inp) for subm, inp in zip(submodels, inputs)]
             main_input, sub_aux = map(list, zip(*results))
 
-            stack = tf.stack(main_input, axis=1)
+            # stack = tf.stack(main_input, axis=1)
+            main_input = keras.layers.concatenate(main_input)
 
             mult = np.array([24, 1, 1/4]).reshape((-1, 1))
-            outer = tf.math.multiply(stack, mult)
-            outer = tf.math.reduce_sum(outer, axis=1)
+            outer = tf.linalg.matmul(main_input, mult)
             outer = tf.math.divide(outer, np.sum(mult))
 
             outputs = [outer] + sub_aux
@@ -87,8 +87,8 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
     lr = 1e-3
     model.compile(
         optimizer=keras.optimizers.RMSprop(learning_rate=lr),
-        loss='categorical_crossentropy',
-        loss_weights=[1, 1, 1, 1],
+        loss='mse',
+        loss_weights=[0, 0, 0, 1],
     )
 
     return model
@@ -103,15 +103,9 @@ def get_conf(close, period, trashold=.8):
     close = close - mins - center
     conf = close / center
     # conf = conf[::-1].ewm(span=2, min_periods=0).mean()[::-1]
-    # conf = conf.ewm(span=3, min_periods=0).mean()
-    conf = -conf
+    conf = conf.ewm(span=3, min_periods=0).mean()
 
-    buy = [1 if c > trashold else 0 for c in conf]
-    sell = [1 if c < -trashold else 0 for c in conf]
-    wait = [not b and not s for b, s in zip(buy, sell)]
-    desicions = np.array([sell, wait, buy], dtype=int).T
-
-    return (mins, maxs), desicions
+    return (mins, maxs), conf
 
 def plot(close, true_conf=None, pred=None, pair_trader=None, **kw):
 
@@ -154,14 +148,14 @@ if __name__ == '__main__':
             close[timeframe].append(data[4]) # close price
 
     target = {}
-    periods = {'4h': 6, '1h': 24, '15m': 4}
+    periods = {'4h': 6, '1h': 4, '15m': 4}
     for timeframe, data in close.items():
         _, desicions = get_conf(data, periods[timeframe])
         conf_iter = iter(desicions)
         rep = []
         for upd in history:
             if timeframe in upd:
-                rep.append(next(conf_iter).tolist())
+                rep.append(next(conf_iter))
             else:
                 rep.append(rep[-1])
         target[timeframe] = np.array(rep)
@@ -190,17 +184,4 @@ if __name__ == '__main__':
         ],
     )
     pred = model.predict(signals)[-1]
-
-    from collections import Counter
-    print(Counter(np.argmax(target[-1], axis=1) - 1))
-    print(Counter(np.argmax(pred, axis=1) - 1))
-
-    plt.plot(np.argmax(target[-1], axis=1) - 1, color='blue')
-    plt.plot(np.argmax(pred, axis=1) - 1, color='red')
-    plt.show()
-
-    # pred = pred.reshape(-1)
-    # # target = target[1].reshape(-1)
-
-    # # plot(close['15m'], true_conf=target, pred=pred, period=24*4)
-
+    plot(close['15m'], target[-1], pred, period=4*24)
