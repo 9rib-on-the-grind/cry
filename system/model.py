@@ -36,10 +36,14 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
         name = hierarchy['name']
 
         if name == 'RuleClassExpert':
-            dropout = .4
-            inner = 35
-            repeat = 3
-            outer = 20
+            # dropout = .4
+            # inner = 35
+            # repeat = 3
+            # outer = 20
+            dropout = hp.Float('drop', .1, .5, .1)
+            inner = hp.Int('inner', 3, 20, 3)
+            repeat = hp.Int('repeat', 0, 6, 2)
+            outer = hp.Int('outer', 1, 8, 3)
 
             prev = inputs
             for layer in get_inner_layers(repeat, inner, dropout):
@@ -58,6 +62,7 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             concat = keras.layers.concatenate(main_input)
             outer = keras.layers.Dense(outer, activation='selu')(concat)
             outer = keras.layers.Dense(1, activation='tanh', use_bias=False)(outer)
+            # outer = keras.layers.Dense(1, activation='tanh')(concat)
 
             sub_aux = keras.layers.Average()(sub_aux)
             aux = keras.layers.Average()([sub_aux, outer]) # change by dense?
@@ -72,7 +77,7 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             # stack = tf.stack(main_input, axis=1)
             main_input = keras.layers.concatenate(main_input)
 
-            mult = np.array([24, 1, 1/4]).reshape((-1, 1))
+            mult = np.array([24, 1, 4]).reshape((-1, 1))
             outer = tf.linalg.matmul(main_input, mult)
             outer = tf.math.divide(outer, np.sum(mult))
 
@@ -103,7 +108,7 @@ def get_conf(close, period, trashold=.8):
     close = close - mins - center
     conf = close / center
     # conf = conf[::-1].ewm(span=2, min_periods=0).mean()[::-1]
-    conf = conf.ewm(span=3, min_periods=0).mean()
+    conf = conf.ewm(span=5, min_periods=0).mean()
 
     return (mins, maxs), conf
 
@@ -165,23 +170,48 @@ if __name__ == '__main__':
     target = [target[key] for key in ['main', '4h', '15m', '1h']]
 
 
+    tuner = keras_tuner.BayesianOptimization(
+        construct_model_from_expert_config,
+        objective='val_loss',
+        max_trials=10,
+        directory='hp',
+        project_name='cry'
+    )
 
+    tuner.search_space_summary()
 
-
-
-    model = construct_model_from_expert_config()
-    model.summary()
-
-    model.fit(
+    tuner.search(
         x=signals,
         y=target,
         validation_split=.2,
         epochs=10,
         batch_size=32,
         callbacks=[
-            keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
-            tf.keras.callbacks.EarlyStopping(patience=8, verbose=1, restore_best_weights=True),
+            keras.callbacks.ReduceLROnPlateau(patience=3, verbose=1),
+            tf.keras.callbacks.EarlyStopping(patience=5, verbose=1, restore_best_weights=True),
         ],
     )
-    pred = model.predict(signals)[-1]
-    plot(close['15m'], target[-1], pred, period=4*24)
+
+    tuner.results_summary()
+
+    print('y'*1000)
+
+
+
+
+    # model = construct_model_from_expert_config()
+    # model.summary()
+
+    # model.fit(
+    #     x=signals,
+    #     y=target,
+    #     validation_split=.2,
+    #     epochs=10,
+    #     batch_size=32,
+    #     callbacks=[
+    #         keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
+    #         tf.keras.callbacks.EarlyStopping(patience=8, verbose=1, restore_best_weights=True),
+    #     ],
+    # )
+    # pred = model.predict(signals)[-1]
+    # plot(close['15m'], target[-1], pred, period=4*24)
