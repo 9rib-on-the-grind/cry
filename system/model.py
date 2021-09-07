@@ -1,4 +1,3 @@
-from pprint import pprint
 from collections import defaultdict
 
 import tensorflow as tf
@@ -15,7 +14,7 @@ import trader
 
 
 
-def get_inner_layers(repeat, inner, dropout, **kwargs):
+def get_inner_layers(repeat, inner, dropout):
     layers = []
     for _ in range(repeat):
         layers += [
@@ -36,10 +35,6 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
         name = hierarchy['name']
 
         if name == 'RuleClassExpert':
-            # dropout = .4
-            # inner = 35
-            # repeat = 3
-            # outer = 20
             dropout = hp.Float('drop', .1, .5, .1)
             inner = hp.Int('inner', 3, 20, 3)
             repeat = hp.Int('repeat', 0, 6, 2)
@@ -58,14 +53,11 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             results = [subm(inp) for subm, inp in zip(submodels, inputs)]
             main_input, sub_aux = map(list, zip(*results))
 
-            outer = 30
             concat = keras.layers.concatenate(main_input)
-            outer = keras.layers.Dense(outer, activation='selu')(concat)
-            outer = keras.layers.Dense(1, activation='tanh', use_bias=False)(outer)
-            # outer = keras.layers.Dense(1, activation='tanh')(concat)
+            outer = keras.layers.Dense(1, activation='tanh')(concat)
 
             sub_aux = keras.layers.Average()(sub_aux)
-            aux = keras.layers.Average()([sub_aux, outer]) # change by dense?
+            aux = keras.layers.Average()([sub_aux, outer])
 
             return keras.Model(inputs=inputs, outputs=[outer, aux], name=hierarchy['parameters']['timeframe'])
 
@@ -74,32 +66,26 @@ def construct_model_from_expert_config(hp=None, *, filename='expert.json'):
             results = [subm(inp) for subm, inp in zip(submodels, inputs)]
             main_input, sub_aux = map(list, zip(*results))
 
-            # stack = tf.stack(main_input, axis=1)
             main_input = keras.layers.concatenate(main_input)
 
-            mult = np.array([24, 1, 4]).reshape((-1, 1))
+            mult = np.array([24, 1, 4]).reshape((-1, 1)) # 4h, 15m, 1h
             outer = tf.linalg.matmul(main_input, mult)
             outer = tf.math.divide(outer, np.sum(mult))
 
             outputs = [outer] + sub_aux
-
             return keras.Model(inputs=inputs, outputs=outputs, name='main')
 
     hierarchy = json.load(open(filename, 'r'))
     inputs = get_inputs(hierarchy)
     model = build(hierarchy, inputs, hp)
-    model.summary()
-    lr = 1e-3
     model.compile(
-        optimizer=keras.optimizers.RMSprop(learning_rate=lr),
         loss='mse',
-        loss_weights=[0, 0, 0, 1],
+        loss_weights=[3, 1, 1, 1],
     )
 
     return model
 
-
-def get_conf(close, period, trashold=.8):
+def get_conf(close, period):
     close = pd.Series(close)
     mins = close[::-1].rolling(period, closed='both', min_periods=0).min()[::-1]
     maxs = close[::-1].rolling(period, closed='both', min_periods=0).max()[::-1]
@@ -140,9 +126,6 @@ def plot(close, true_conf=None, pred=None, pair_trader=None, **kw):
 
 
 
-np.set_printoptions(edgeitems=7)
-np.core.arrayprint._line_width = 180
-
 if __name__ == '__main__':
 
     history, signals = trainer.get_data()
@@ -165,10 +148,9 @@ if __name__ == '__main__':
                 rep.append(rep[-1])
         target[timeframe] = np.array(rep)
 
-    _, desicions = get_conf(close['15m'], 4 * 24)
-    target['main'] = desicions
+    _, conf = get_conf(close['15m'], 4 * 24)
+    target['main'] = conf
     target = [target[key] for key in ['main', '4h', '15m', '1h']]
-
 
     tuner = keras_tuner.BayesianOptimization(
         construct_model_from_expert_config,
@@ -177,8 +159,6 @@ if __name__ == '__main__':
         directory='hp',
         project_name='cry'
     )
-
-    tuner.search_space_summary()
 
     tuner.search(
         x=signals,
@@ -193,25 +173,3 @@ if __name__ == '__main__':
     )
 
     tuner.results_summary()
-
-    print('y'*1000)
-
-
-
-
-    # model = construct_model_from_expert_config()
-    # model.summary()
-
-    # model.fit(
-    #     x=signals,
-    #     y=target,
-    #     validation_split=.2,
-    #     epochs=10,
-    #     batch_size=32,
-    #     callbacks=[
-    #         keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
-    #         tf.keras.callbacks.EarlyStopping(patience=8, verbose=1, restore_best_weights=True),
-    #     ],
-    # )
-    # pred = model.predict(signals)[-1]
-    # plot(close['15m'], target[-1], pred, period=4*24)

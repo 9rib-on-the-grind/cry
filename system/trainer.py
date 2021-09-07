@@ -1,21 +1,8 @@
-import json
-from itertools import product, accumulate
-from copy import deepcopy
-import time
-import heapq
-from pprint import pprint
-import multiprocessing as mp
-import os
-import sys
 import pickle
 from collections import defaultdict
 
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 
-import rules
-import indicators
 import trader
 import experts
 import data
@@ -26,16 +13,16 @@ import config
 class Trainer:
     rule_names = [
         'MovingAverageCrossoverRule',
-        # 'ExponentialMovingAverageCrossoverRule',
+        'ExponentialMovingAverageCrossoverRule',
         'RelativeStrengthIndexTrasholdRule',
         'TripleExponentialDirectionChangeRule',
         'IchimokuKinkoHyoTenkanKijunCrossoverRule',
-        # 'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
+        'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
         'IchimokuKinkoHyoChikouCrossoverRule',
         # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
         'BollingerBandsLowerUpperCrossoverRule',
-        # 'BollingerBandsLowerMidCrossoverRule',
-        # 'BollingerBandsUpperMidCrossoverRule',
+        'BollingerBandsLowerMidCrossoverRule',
+        'BollingerBandsUpperMidCrossoverRule',
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
     ]
 
