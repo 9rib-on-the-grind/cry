@@ -45,9 +45,6 @@ class BaseExpert:
         if self._weights.size > 0:
             self._original_weights, self._weights = self._weights, softmax(self._weights)
 
-    def get_parameters(self):
-        raise NotImplementedError()
-
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
         return estimations @ self._weights
@@ -148,15 +145,17 @@ class RuleExpert(BaseExpert):
         self._indicators = indicators
         if not self._rule.compatible(*self._indicators):
             raise ValueError('Rule is incompatible with indicators')
-        indicator_names = [indicator.name for indicator in self._indicators]
-        self.name = f'RuleExpert [{self._rule.name}, {str(indicator_names)}]'
+        self.name = f'RuleExpert [{self._rule.name}]'
         del self._inner_experts
         del self._weights
 
     def set_experts(self):
-        raise SystemError('Do not call this method')
+        raise AttributeError('RuleExpert cannot have inner experts')
 
     def set_data(self, data: data.DataMaintainer):
+        self._data = data
+        self._estimation_hash = None
+        self._signals = []
         for indicator in self._indicators:
             indicator.set_data(data)
 
@@ -164,7 +163,14 @@ class RuleExpert(BaseExpert):
         return {}
 
     def estimate(self):
-        return self._rule.decide(*self._indicators)
+        if self._estimation_hash == self._data.update_hash:
+            estimation = self._last_estimation
+        else:
+            estimation = self._rule.decide(*self._indicators)
+            self._last_estimation = estimation
+            self._estimation_hash = self._data.update_hash
+        self._signals.append(estimation)
+        return estimation
 
     def update(self):
         for indicator in self._indicators:

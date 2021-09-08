@@ -1,19 +1,14 @@
-import json
-from itertools import product, accumulate
 from copy import deepcopy
-import time
+from collections import defaultdict
 import heapq
-from pprint import pprint
 import multiprocessing as mp
 import os
-import sys
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
 import rules
-import indicators
 import trader
 import experts
 import data
@@ -37,7 +32,8 @@ class Trainer:
         'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
     ]
 
-    timeframes = ['1d', '4h', '1h', '15m']
+    # timeframes = ['1d', '4h', '1h', '15m']
+    timeframes = ['1h']
 
     def __init__(self):
         self.loaded_history = {}
@@ -46,14 +42,12 @@ class Trainer:
         timeframes = self.timeframes
         rules = self.rule_names
 
-        reestimate = False
         reestimate = True
+        reestimate = False
 
         if reestimate:
             config.create_searchspace_config()
 
-            pair = 'BTC/USDT'
-            base, quote = pair.split('/')
             timeframe_lst = []
             for timeframe in timeframes:
                 rule_cls_lst = []
@@ -70,6 +64,8 @@ class Trainer:
                 timeframe_expert.set_experts(rule_cls_lst)
                 timeframe_lst.append(timeframe_expert)
 
+            pair = 'BTC/USDT'
+            base, quote = pair.split('/')
             pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
             self.trim_bad_experts(pair_expert, nbest=99999, verbose=True)
@@ -79,11 +75,9 @@ class Trainer:
             pair_expert = config.deserialize_expert_from_json('estimated_expert.json')
 
         self.choose_branches(pair_expert, timeframes=timeframes, rules=rules)
-        self.trim_bad_experts(pair_expert, min_trades=10, trashold=.2)
-        # self.trim_bad_experts(pair_expert, min_trades=10, nbest=10)
-        pair_expert.show()
-        raise SystemExit()
+        self.trim_bad_experts(pair_expert, min_trades=10, nbest=100)
         config.serialize_expert_to_json(expert=pair_expert)
+        pair_expert.show()
 
     def choose_branches(self, expert: experts.BaseExpert, *,
                               timeframes: list[str] = None,
@@ -174,28 +168,26 @@ class Trainer:
         def construct_data(pair_trader: trader.PairTrader, ndays: int):
             init_data = data.DataMaintainer()
             new_data = {}
-            start_time = load_history(pair_trader.pair, '1d')['Close time'].iloc[-ndays]
+            start_time = load_history(pair_trader.pair, '1d')['Open time'].iloc[-ndays]
             for timeframe in pair_trader.timeframes:
                 df = load_history(pair_trader.pair, timeframe)
-                split = df['Close time'].searchsorted(start_time)
+                split = df['Open time'].searchsorted(start_time) - 1
                 init, new = df.iloc[max(split-1000, 0): split].values.T, df.iloc[split:].values
                 mapping = {key: val for key, val in zip(df, init)}
                 init_data.add(mapping, location=[timeframe, 'Init'])
                 new_data[timeframe] = new
             return init_data, new_data
 
-        init_data, new_data = construct_data(pair_trader, ndays + 1)
+        init_data, new_data = construct_data(pair_trader, ndays + 2)
         pair_trader.set_data(init_data)
 
-        new_data_iter = {timeframe: iter(data) for timeframe, data in new_data.items()}
-        minutes = {timeframe: n for timeframe, n in zip(['1m', '15m', '1h', '4h', '1d'], [1, 15, 60, 240, 1440])}
-        simulation_length = minutes['1d'] * ndays
+        updates = defaultdict(dict) # close time -> update
+        for timeframe, rows in new_data.items():
+            for row in rows:
+                close_time = row[6]
+                updates[close_time][timeframe] = row
 
-        for i in range(0, simulation_length, minutes[pair_trader.min_timeframe]):
-            update = {}
-            for timeframe in pair_trader.timeframes:
-                if not i % minutes[timeframe]:
-                    update[timeframe] = next(new_data_iter[timeframe])
+        for close_time, update in list(sorted(updates.items())):
             pair_trader.update(update)
             pair_trader.act()
 
@@ -203,7 +195,7 @@ class Trainer:
             self.show_trades(pair_trader, new_data)
         return pair_trader.evaluate_profit(), len(pair_trader.trades)
 
-    def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs=10, population=10, nchildren=3, indentation=0, **kwargs):
+    def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs=25, population=10, nchildren=5, indentation=0, **kwargs):
         def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
             profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=90)
             ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
@@ -297,7 +289,6 @@ if __name__ == '__main__':
     trainer = Trainer()
 
     trainer.construct_system()
-
     expert = config.deserialize_expert_from_json()
     expert.set_weights(recursive=True)
 
