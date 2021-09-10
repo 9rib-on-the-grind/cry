@@ -1,5 +1,6 @@
 import collections
 from collections.abc import Sequence
+import pickle
 
 import numpy as np
 from scipy.special import softmax
@@ -44,6 +45,26 @@ class BaseExpert:
     def normalize_weights(self):
         if self._weights.size > 0:
             self._original_weights, self._weights = self._weights, softmax(self._weights)
+
+    def save_weights(self, filename='weights', *, write=True):
+        if hasattr(self, '_weights'):
+            if isinstance(self, RuleClassExpert):
+                inner = []
+            else:
+                inner = [exp.save_weights(write=False) for exp in self._inner_experts]
+            weights = [self.get_weights(), inner]
+            if write:
+                pickle.dump(weights, open(filename, 'wb'))
+            return weights
+
+    def load_weights(self, filename='weights', *, weights=None):
+        if weights is None:
+            weights, inner = pickle.load(open(filename, 'rb'))
+        else:
+            weights, inner = weights
+        self.set_weights(weights)
+        for exp, weights in zip(self._inner_experts, inner):
+            exp.load_weights(weights=weights)
 
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
