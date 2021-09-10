@@ -53,6 +53,14 @@ class PairTrader(BaseTrader):
         self.expert.update()
 
     def act(self):
+        def stoploss(trade: tuple, price):
+            trashold = .08
+            action, _, trade_price = trade
+            if action == 'buy' and price < trade_price * (1 - trashold):
+                return True
+            else:
+                return False
+
         timeframe = self.min_timeframe
         price = self.data[timeframe, 'Close']
         time = self.data[timeframe, 'Close time']
@@ -64,7 +72,7 @@ class PairTrader(BaseTrader):
             self.trades.append(('buy', self.quantity, price))
             self.balance = 0
             self._profits.append(self._profits[-1] if self._profits else 0)
-        elif estimation < -self.trashold and self.quantity > 0: # sell
+        elif self.quantity > 0 and (estimation < -self.trashold or stoploss(self.trades[-1], price)): # sell
             self.balance = (1 - self.commision) * self.quantity * price
             self.times.append(time)
             self.trades.append(('sell', self.quantity, price))
