@@ -40,9 +40,15 @@ def create_searchspace_config():
 
     ranges = {
         '1m': get_logspace(10, 360, 25),
+        '5m': get_logspace(8, 288, 25),
         '15m': get_logspace(8, 192, 25),
+        '30m': get_logspace(8, 336, 25),
         '1h': get_logspace(6, 168, 25),
+        '2h': get_logspace(6, 336, 25),
         '4h': get_logspace(6, 180, 25),
+        '6h': get_logspace(6, 120, 25),
+        '8h': get_logspace(6, 90, 25),
+        '12h': get_logspace(6, 180, 25),
         '1d': get_logspace(7, 365, 25),
     }
     patience = get_logspace(1, 50, 11)
