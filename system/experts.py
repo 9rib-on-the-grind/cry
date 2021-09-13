@@ -17,9 +17,8 @@ class BaseExpert:
     def __init__(self):
         self.name = 'BaseExpert'
         self._inner_experts = None
-        self._weights = self._original_weights = np.array([])
-        self._estimated_profit = None
-        self._estimated_ntrades = None
+        self._weights = None
+        self.estimation = {est: None for est in ('fitness', 'pofit', 'ntrades')}
 
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
@@ -37,14 +36,9 @@ class BaseExpert:
             if recursive:
                 for expert in self._inner_experts:
                     expert.set_weights(None, recursive=True)
-            self.normalize_weights()
 
     def get_weights(self):
-        return self._original_weights
-
-    def normalize_weights(self):
-        if self._weights.size > 0:
-            self._original_weights, self._weights = self._weights, softmax(self._weights)
+        return self._weights
 
     def save_weights(self, filename='weights', *, write=True):
         if hasattr(self, '_weights'):
@@ -68,7 +62,7 @@ class BaseExpert:
 
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
-        return estimations @ self._weights
+        return softmax(estimations @ self._weights)
 
     def update(self):
         for expert in self._inner_experts:
@@ -176,7 +170,6 @@ class RuleExpert(BaseExpert):
     def set_data(self, data: data.DataMaintainer):
         self._data = data
         self._estimation_hash = None
-        self._signals = []
         for indicator in self._indicators:
             indicator.set_data(data)
 
@@ -190,7 +183,6 @@ class RuleExpert(BaseExpert):
             estimation = self._rule.decide(*self._indicators)
             self._last_estimation = estimation
             self._estimation_hash = self._data.update_hash
-        self._signals.append(estimation)
         return estimation
 
     def update(self):
@@ -203,7 +195,8 @@ class RuleExpert(BaseExpert):
         else:
             rule_name = f'{self._rule.name}, {self._rule.get_parameters()}'
             inds_names = f'{str([(ind.name, ind.get_parameters()) for ind in self._indicators])}'
-            ntrades = f'{self._estimated_ntrades:>5} trades' if self._estimated_ntrades is not None else 'unknown'
-            profit = f'{self._estimated_profit:.2f} %' if self._estimated_profit is not None else 'unknown'
+            profit, ntrades = self.estimation['profit'], self.estimation['ntrades']
+            profit = f'{profit:.2f} %' if profit is not None else 'unknown'
+            ntrades = f'{ntrades:>5} trades' if ntrades is not None else 'unknown'
             info = f'{rule_name:<80} {inds_names:<100} {ntrades:>10} {profit:>10}'
         print(f'{" " * indentation} {info}')

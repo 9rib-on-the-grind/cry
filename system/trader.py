@@ -1,6 +1,8 @@
 import time
 from collections.abc import Mapping, Iterable
 
+import numpy as np
+
 import experts
 import data
 
@@ -38,7 +40,7 @@ class PairTrader(BaseTrader):
     def set_expert(self, expert: experts.PairExpert):
         self.expert = expert
         self.timeframes = [expert.timeframe for expert in self.expert._inner_experts]
-        self.min_timeframe = '1h'
+        self.min_timeframe = self.timeframes[0] if len(self.timeframes) == 1 else 'error'
 
     def update(self, data: Mapping[str, Iterable]):
         """Update candlesticks data, update expert.
@@ -95,3 +97,12 @@ class PairTrader(BaseTrader):
         else:
             balance = self.balance
         return 100 * (balance - self.initial_money) / self.initial_money
+
+    def fitness(self):
+        profits = self._profits[1::2]
+        diff = [b / a for a, b in zip(profits, profits[1:])]
+        if not diff:
+            return float('-inf')
+        else:
+            mean = np.mean(diff)
+            return mean ** (len(diff) / 300) if mean >= 0 else mean
