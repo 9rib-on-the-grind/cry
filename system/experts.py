@@ -62,7 +62,7 @@ class BaseExpert:
 
     def estimate(self):
         estimations = np.array([expert.estimate() for expert in self._inner_experts])
-        return softmax(estimations @ self._weights)
+        return estimations @ softmax(self._weights)
 
     def update(self):
         for expert in self._inner_experts:
