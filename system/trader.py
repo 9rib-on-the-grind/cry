@@ -100,9 +100,9 @@ class PairTrader(BaseTrader):
 
     def fitness(self):
         profits = self._profits[1::2]
-        diff = [b / a for a, b in zip(profits, profits[1:])]
-        if not diff:
+        if not profits:
             return float('-inf')
         else:
-            mean = np.mean(diff)
-            return mean ** (len(diff) / 300) if mean >= 0 else mean
+            mean = np.mean(profits)
+            # return mean * len(diff)
+            return (1 + mean / 100) ** (len(profits))
