@@ -193,8 +193,7 @@ def serialize_expert_to_json(filename: str = 'expert.json',
                            'parameters': indicator.get_parameters()}
                                                     for indicator in indicators]
             state['parameters'] = {'rule': rule, 'indicators': indicators}
-            state['estimations'] = {'profit': expert._estimated_profit,
-                                    'ntrades': expert._estimated_ntrades}
+            state['estimation'] = expert.estimation
 
         return state
 
@@ -213,8 +212,7 @@ def deserialize_expert_from_json(filename: str = 'expert.json'):
             rule = getattr(rules, rule['name'])(**rule['parameters'])
             inds = [getattr(indicators, ind['name'])(**ind['parameters']) for ind in inds]
             expert = experts.RuleExpert(rule, inds)
-            expert._estimated_profit = hierarchy['estimations']['profit']
-            expert._estimated_ntrades = hierarchy['estimations']['ntrades']
+            expert.estimation = hierarchy['estimation']
 
         return expert
 
