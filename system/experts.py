@@ -18,7 +18,7 @@ class BaseExpert:
         self.name = 'BaseExpert'
         self._inner_experts = None
         self._weights = None
-        self.estimation = {est: None for est in ('fitness', 'pofit', 'ntrades')}
+        self.estimation = {est: None for est in ('fitness', 'profit', 'ntrades')}
 
     def set_experts(self, experts: Sequence):
         self._inner_experts = experts
