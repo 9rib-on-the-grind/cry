@@ -30,7 +30,6 @@ class DataMaintainer:
 
     def add(self, mapping: dict, 
                   location: Sequence = None):
-
         subunit = self.construct_location(location) if location else self
         for key, val in mapping.items():
             subunit._data[key] = val
@@ -56,7 +55,7 @@ class DataMaintainer:
             self._data[key] = val
         self.set_update_hash()
 
-    def set_update_hash(self, val = None):
+    def set_update_hash(self, val=None):
         """Set hash representation of last time when data was updated"""
         self.update_hash = val if val is not None else time.time()
 
@@ -74,7 +73,6 @@ class DataMaintainer:
         for key, obj in self._data.items():
             lst = maintainers if isinstance(obj, DataMaintainer) else ordinary
             lst.append((key, obj))
-        
         print(' ' * indentatioin + location)
         for key, maintainer in maintainers:
             maintainer.show(f'{location}/{key}', indentatioin + 10)
