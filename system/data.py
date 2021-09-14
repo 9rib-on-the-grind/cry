@@ -9,7 +9,7 @@ class DataMaintainer:
     """Data Maintainer class for efficient data stream update.
 
     Args:
-        _data: Dictionary that maps key to another DataMaintainer any other object.
+        _data: Dictionary that maps key to another DataMaintainer or any other object.
     """
 
     def __init__(self):
@@ -43,7 +43,7 @@ class DataMaintainer:
                     obj.drop(key, recursively=True)
 
     def update(self, data: Iterable, keys: Iterable = 'auto'):
-        """Update elements by keys.
+        """Update items by keys.
 
         Args:
             data: Iterable. New values.
@@ -56,7 +56,7 @@ class DataMaintainer:
         self.set_update_hash()
 
     def set_update_hash(self, val=None):
-        """Set hash representation of last time when data was updated"""
+        """Set hash representation of last update time."""
         self.update_hash = val if val is not None else time.time()
 
     def keys(self):
