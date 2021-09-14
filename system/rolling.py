@@ -11,6 +11,9 @@ class BaseRollingWindow:
             self._queue = collections.deque(maxlen=self.length)
         self._state = 0
 
+    def append(self, val: float):
+        raise NotImplemented()
+
     def get_state(self):
         return self._state
 
