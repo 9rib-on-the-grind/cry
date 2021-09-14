@@ -1,3 +1,5 @@
+"""Module for time-efficient statistics calculation on updating data stream."""
+
 import collections
 
 
