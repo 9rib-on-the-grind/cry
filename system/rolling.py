@@ -84,17 +84,6 @@ class Max(BaseRollingWindow):
 
 
 
-class Lag(BaseRollingWindow):
-    def __init__(self, length):
-        super().__init__(length)
-        self._queue.append(0)
-
-    def append(self, val: float):
-        self._state = self._queue[0]
-        self._queue.append(val)
-
-
-
 class Sum(BaseRollingWindow):
     def __init__(self, length):
         super().__init__(length)
@@ -104,6 +93,17 @@ class Sum(BaseRollingWindow):
             self._state -= self._queue.popleft()
         self._queue.append(val)
         self._state += val
+
+
+
+class Lag(BaseRollingWindow):
+    def __init__(self, length):
+        super().__init__(length)
+        self._queue.append(0)
+
+    def append(self, val: float):
+        self._state = self._queue[0]
+        self._queue.append(val)
 
 
 
