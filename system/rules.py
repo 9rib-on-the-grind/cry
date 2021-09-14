@@ -51,7 +51,7 @@ class BaseRule:
         self._patience = patience
 
     def compatible(self, *args: indicators.BaseIndicator):
-        """Return wether rule can logicaly be applied to indicator(s)."""
+        """Return whether rule can logicaly be applied to indicator(s)."""
         return True
 
     def update(self):

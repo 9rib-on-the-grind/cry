@@ -25,7 +25,7 @@ class BaseIndicator:
     def is_updated(self):
         return self.update_hash == self._data.update_hash
 
-    def update(self):
+    def update(self, val: float = None):
         raise NotImplementedError()
 
 

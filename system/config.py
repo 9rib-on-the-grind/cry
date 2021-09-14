@@ -3,7 +3,6 @@
 import json
 import collections
 from itertools import product
-from pprint import pprint
 
 import numpy as np
 
@@ -177,6 +176,7 @@ def serialize_expert_to_json(filename: str = 'expert.json',
                 {
                     'name': 'string',
                     'parameters': {attribute: value}
+                    'estimation': {estimation: value}
                 }
             ]
         }
@@ -208,7 +208,7 @@ def deserialize_expert_from_json(filename: str = 'expert.json'):
             expert = getattr(experts, hierarchy['name'])(**hierarchy['parameters'])
             inner = [deserialize_expert_from_dict(exp) for exp in hierarchy['inner experts']]
             expert.set_experts(inner)
-        else: # expert is RuleExpert
+        else:
             rule = hierarchy['parameters']['rule']
             inds = hierarchy['parameters']['indicators']
             rule = getattr(rules, rule['name'])(**rule['parameters'])
@@ -221,6 +221,7 @@ def deserialize_expert_from_json(filename: str = 'expert.json'):
     hierarchy = json.load(open(filename, 'r'))
     expert = deserialize_expert_from_dict(hierarchy)
     return expert
+
 
 
 if __name__ == '__main__':

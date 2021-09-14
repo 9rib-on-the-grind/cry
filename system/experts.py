@@ -1,6 +1,5 @@
 """Module for expert classes hierarchy."""
 
-import collections
 from collections.abc import Sequence
 import pickle
 
@@ -15,9 +14,9 @@ import data
 
 class BaseExpert:
     """Base Expert class for decision making."""
+    name = 'BaseExpert'
 
     def __init__(self):
-        self.name = 'BaseExpert'
         self._inner_experts = None
         self._weights = None
         self.estimation = {est: None for est in ('fitness', 'profit', 'ntrades')}

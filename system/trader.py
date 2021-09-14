@@ -1,4 +1,3 @@
-import time
 from collections.abc import Mapping, Iterable
 
 import numpy as np

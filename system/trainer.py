@@ -18,23 +18,21 @@ import config
 
 class Trainer:
     rule_names = [
-        # 'MovingAverageCrossoverRule',
-        # 'ExponentialMovingAverageCrossoverRule',
-        # 'RelativeStrengthIndexTrasholdRule',
+        'MovingAverageCrossoverRule',
+        'ExponentialMovingAverageCrossoverRule',
+        'RelativeStrengthIndexTrasholdRule',
         'TripleExponentialDirectionChangeRule',
-        # 'IchimokuKinkoHyoTenkanKijunCrossoverRule',
-        # 'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
-        # 'IchimokuKinkoHyoChikouCrossoverRule',
+        'IchimokuKinkoHyoTenkanKijunCrossoverRule',
+        'IchimokuKinkoHyoSenkouASenkouBCrossoverRule',
+        'IchimokuKinkoHyoChikouCrossoverRule',
         # 'IchimokuKinkoHyoSenkouASenkouBSupportResistanceRule',
-        # 'BollingerBandsLowerUpperCrossoverRule',
-        # 'BollingerBandsLowerMidCrossoverRule',
-        # 'BollingerBandsUpperMidCrossoverRule',
-        # 'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
+        'BollingerBandsLowerUpperCrossoverRule',
+        'BollingerBandsLowerMidCrossoverRule',
+        'BollingerBandsUpperMidCrossoverRule',
+        'MovingAverageConvergenceDivergenceSignalLineCrossoverRule',
     ]
 
-    # timeframes = ['1d', '12h', '8h', '6h', '4h', '2h', '1h', '30m', '15m', '5m']
-    # timeframes = ['30m']
-    timeframes = ['1h']
+    timeframes = ['1d', '12h', '8h', '6h', '4h', '2h', '1h', '30m', '15m', '5m']
 
     def __init__(self):
         self.loaded_history = {}
@@ -44,7 +42,6 @@ class Trainer:
         rules = self.rule_names
 
         reestimate = True
-        reestimate = False
 
         if reestimate:
             config.create_searchspace_config()
@@ -69,6 +66,7 @@ class Trainer:
             base, quote = pair.split('/')
             pair_expert = experts.PairExpert(base, quote)
             pair_expert.set_experts(timeframe_lst)
+            pair_expert.show()
             self.trim_bad_experts(pair_expert, nbest=99999, verbose=True)
             config.serialize_expert_to_json(filename='estimated_expert.json', expert=pair_expert)
 
@@ -123,7 +121,7 @@ class Trainer:
             self.estimate_expert(expert, **kwargs)
         if min_trades is not None:
             candidates = [expert for expert in candidates if expert.estimation['ntrades'] >= min_trades]
-        candidates.sort(reverse=True, key=lambda x: x.estimation['profit'])
+        candidates.sort(reverse=True, key=lambda x: x.estimation['fitness'])
         if trashold is not None:
             return [expert for expert in candidates if expert.estimation['profit'] > trashold]
         elif nbest is not None:
@@ -133,15 +131,14 @@ class Trainer:
                               pair: str,
                               timeframe: str,
                               **kwargs):
-        ndays = 200
+        ndays = 100
         if expert.estimation['profit'] is None:
             pair_trader = trader.PairTrader(pair)
             pair_expert = self.cast_to_pair_expert(expert, timeframe=timeframe, **kwargs)
             pair_expert.set_weights(recursive=True)
             pair_trader.set_expert(pair_expert)
-            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays)
-            expert.estimation['profit'] = profit / ndays
-            expert.estimation['ntrades'] = ntrades
+            fitness, profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=ndays)
+            expert.estimation = {'profit': profit, 'ntrades': ntrades, 'ntrades': ntrades}
 
     def cast_to_pair_expert(self, expert: experts.BaseExpert,
                                   quote: str,
@@ -179,7 +176,7 @@ class Trainer:
                 new_data[timeframe] = new
             return init_data, new_data
 
-        init_data, new_data = construct_data(pair_trader, ndays + 2)
+        init_data, new_data = construct_data(pair_trader, 1400)
         pair_trader.set_data(init_data)
 
         updates = defaultdict(dict) # close time -> update
@@ -188,19 +185,19 @@ class Trainer:
                 close_time = row[6]
                 updates[close_time][timeframe] = row
 
-        cut = 999999999 if display else 24*700
+        cut = 999999999 if display else 24*ndays
         for close_time, update in list(sorted(updates.items()))[:cut]:
             pair_trader.update(update)
             pair_trader.act()
 
         if display:
             self.show_trades(pair_trader, new_data)
-        return pair_trader.fitness(), len(pair_trader.trades)
+        return pair_trader.fitness(), pair_trader.evaluate_profit(), len(pair_trader.trades)
 
     def fit_weights(self, expert: experts.BaseExpert, pair='BTC/USDT', epochs='auto', population=10, nchildren=5, indentation=0, **kwargs):
         def estimate_trader(pair_trader: trader.PairTrader, *, ret_dict = None) -> float:
-            profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=1400)
-            ret_dict[hash(pair_trader)] = profit if ntrades >= min_trades else -999
+            fitness, profit, ntrades = self.simulate_pair_trader(pair_trader, ndays=350)
+            ret_dict[hash(pair_trader)] = (fitness, profit)
 
         def change_weights(weights: np.array):
             sigma = lr * np.exp(-decay * epoch)
@@ -221,15 +218,14 @@ class Trainer:
                 self.fit_weights(exp, indentation=indentation+10, **kwargs)
 
         if len(expert._inner_experts) > 1:
+            print(' ' * indentation + f'{expert.name}')
             lr, decay = 1, .3
             min_trades = 10
             parents = [expert.get_weights()]
-
-            print(' ' * indentation + f'{expert.name}')
             if epochs == 'auto':
                 epochs = len(expert._inner_experts) // 3
-                # epochs = 3
                 epochs = max(epochs, 10)
+
             for epoch in range(epochs):
                 children = []
                 for weights in parents:
@@ -249,14 +245,14 @@ class Trainer:
 
                 results = zip(estimations, parents)
                 results = heapq.nlargest(population, results, key=lambda x: x[0])
-                parents = [weights for profit, weights in results]
+                parents = [weights for est, weights in results]
 
-                best_profit, best_weights = max(results, key=lambda x: x[0])
-                if expert.estimation['profit'] is None or expert.estimation['profit'] < best_profit:
-                    expert.estimation['profit'] = best_profit
+                (best_fitness, best_profit), best_weights = max(results, key=lambda x: x[0])
+                if expert.estimation['fitness'] is None or expert.estimation['fitness'] < best_fitness:
+                    expert.estimation['fitness'] = best_fitness
                     expert.set_weights(best_weights)
 
-                print(' ' * (indentation + 100) + f'[ {epoch+1:>3} / {epochs:<3} ] fitness: {best_profit}')
+                print(' ' * (indentation + 100) + f'[ {epoch+1:>3} / {epochs:<3} ] fitness: {best_fitness:.2f} profit: {best_profit:.2f} %')
             print(expert.get_weights())
 
     def show_trades(self, pair_trader: trader.PairTrader, new_data: dict):
@@ -299,10 +295,10 @@ if __name__ == '__main__':
     expert = config.deserialize_expert_from_json()
     expert.set_weights(recursive=True)
 
-
     trainer.fit_weights(expert, epochs=1)
-    # expert.save_weights()
-    # raise SystemExit()
+    expert.save_weights()
+
+    # expert.load_weights()
 
     pair_trader = trader.PairTrader('BTC/USDT')
     pair_trader.set_expert(expert)
