@@ -33,7 +33,6 @@ class PriceIndicator(BaseIndicator):
 
     def __init__(self, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.source = source
 
     def init_state(self):
@@ -55,7 +54,6 @@ class MovingAverageIndicator(BaseIndicator):
 
     def __init__(self, length: int, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.length = length
         self.source = source
 
@@ -84,7 +82,6 @@ class ExponentialMovingAverageIndicator(BaseIndicator):
 
     def __init__(self, length: int, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.length = length
         self.source = source
 
@@ -113,7 +110,6 @@ class RelativeStrengthIndexIndicator(BaseIndicator):
 
     def __init__(self, length: int, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.length = length
         self.source = source
 
@@ -152,7 +148,6 @@ class TripleExponentialIndicator(BaseIndicator):
 
     def __init__(self, length: int, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.length = length
         self.source = source
 
@@ -185,7 +180,6 @@ class IchimokuKinkoHyoIndicator(BaseIndicator):
 
     def __init__(self, short: int, long: int, **kwargs):
         super().__init__(**kwargs)
-
         self.short = short
         self.mid = long // 2
         self.long = long
@@ -239,7 +233,6 @@ class BollingerBandsIndicator(BaseIndicator):
 
     def __init__(self, length: int, mult: float, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.length = length
         self.mult = mult
         self.source = source
@@ -272,7 +265,6 @@ class MovingAverageConvergenceDivergenceIndicator(BaseIndicator):
 
     def __init__(self, long: int, signal: int, source: str = 'Close', **kwargs):
         super().__init__(**kwargs)
-
         self.long = long
         self.short = self.long // 2
         self.signal = signal
