@@ -1,3 +1,5 @@
+"""Fetch historical data from binance."""
+
 import os
 import datetime
 

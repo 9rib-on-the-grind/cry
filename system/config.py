@@ -1,3 +1,5 @@
+"""Module for config construction and parsing."""
+
 import json
 import collections
 from itertools import product

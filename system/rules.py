@@ -1,3 +1,5 @@
+"""Module for trading indicators classes."""
+
 import indicators
 from decision import Decision
 

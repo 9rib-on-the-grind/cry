@@ -1,3 +1,5 @@
+"""Module for handling nested data structures."""
+
 from __future__ import annotations
 import collections
 from collections.abc import Iterable, Sequence

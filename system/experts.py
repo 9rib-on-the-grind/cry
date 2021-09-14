@@ -1,3 +1,5 @@
+"""Module for expert classes hierarchy."""
+
 import collections
 from collections.abc import Sequence
 import pickle

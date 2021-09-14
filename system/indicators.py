@@ -1,3 +1,5 @@
+"""Module for trading indicators classes."""
+
 import rolling
 import data
 
