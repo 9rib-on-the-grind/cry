@@ -1,10 +1,7 @@
-# CRY
+# CRY: Cryptocurrency trading system
 
-## program architecture  
-![program architecture](./resources/global_architecture.png)  
+## System architecture
+![System architecture ](./resources/uml.png)
 
-## model architecture  
-![model architecture ](./resources/model_and_traider_UML.png)  
-
-## data structure  
-![data structure ](./resources/data_structure.png)  
+## DataMaintainer structure
+![DataMaintainer structure ](./resources/DataMaintainer.png)
