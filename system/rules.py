@@ -1,4 +1,4 @@
-"""Module for trading indicators classes."""
+"""Module for trading rules classes."""
 
 import indicators
 from decision import Decision
